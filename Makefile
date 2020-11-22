@@ -31,7 +31,7 @@ composedown:
 	docker-compose -f compose/docker-compose.yml down
 
 migratecreate:
-	@echo "What is the root directory of your webserver? Eg. ~/Server/htdocs";
+	@echo "Enter migration name";
 	@read MIGRATION; migrate create -ext sql -dir db/migrations -seq $$MIGRATION
 
 migrateup:
