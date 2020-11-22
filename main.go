@@ -4,14 +4,17 @@ import (
 	"net/http"
 
 	"github.com/alesbrelih/go-reservation-api/internal/myutil"
+	"github.com/alesbrelih/go-reservation-api/router"
 )
 
 func main() {
 
-	// start server
 	port := myutil.GetEnvOrDefault("APPLICATION_PORT", "8080")
 
-	err := http.ListenAndServe(":"+port, nil)
+	mux := router.InitializeRouter()
+
+	// start server
+	err := http.ListenAndServe(":"+port, mux)
 	if err != nil {
 		panic(err.Error())
 	}
