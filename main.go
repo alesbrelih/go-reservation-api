@@ -3,7 +3,7 @@ package main
 import (
 	"net/http"
 
-	"github.com/alesbrelih/go-reservation-api/internal/myutil"
+	"github.com/alesbrelih/go-reservation-api/pkg/myutil"
 	"github.com/alesbrelih/go-reservation-api/router"
 )
 

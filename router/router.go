@@ -1,8 +1,12 @@
 package router
 
-import "net/http"
+import (
+	"github.com/alesbrelih/go-reservation-api/item"
+	"github.com/gorilla/mux"
+)
 
-func InitializeRouter() *http.ServeMux {
-	router := http.NewServeMux()
-	return router
+func InitializeRouter() *mux.Router {
+	r := mux.NewRouter()
+	r.PathPrefix("/item").Handler(item.Router(&item.DefaultItemController{}))
+	return r
 }

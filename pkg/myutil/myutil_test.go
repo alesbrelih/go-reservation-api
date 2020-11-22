@@ -3,7 +3,7 @@ package myutil_test
 import (
 	"testing"
 
-	"github.com/alesbrelih/go-reservation-api/internal/myutil"
+	"github.com/alesbrelih/go-reservation-api/pkg/myutil"
 )
 
 func TestGetEnvOrDefault_MissingEnv(t *testing.T) {
