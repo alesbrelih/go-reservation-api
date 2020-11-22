@@ -3,13 +3,13 @@ package main
 import (
 	"net/http"
 
-	"github.com/alesbrelih/go-reservation-api/internal/util"
+	"github.com/alesbrelih/go-reservation-api/internal/myutil"
 )
 
 func main() {
 
 	// start server
-	port := util.GetEnvOrDefault("APPLICATION_PORT", "8080")
+	port := myutil.GetEnvOrDefault("APPLICATION_PORT", "8080")
 
 	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
