@@ -27,8 +27,7 @@ func testRouter() *mux.Router {
 	return r
 }
 
-func TestGetOne_Routing(t *testing.T) {
-
+func TestGetAll_Routing(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/item", nil)
 	res := httptest.NewRecorder()
 
@@ -41,5 +40,41 @@ func TestGetOne_Routing(t *testing.T) {
 	if res.Body.String() != "GetAll" {
 		t.Errorf("Response body should be GetAll but got %s", res.Body.String())
 	}
+}
 
+func TestGetOne_RoutingOnIntegerParameter(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/item/123", nil)
+	res := httptest.NewRecorder()
+
+	testRouter().ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 200 {
+		t.Errorf("Get all status code should be 200 but got %v", res.Result().StatusCode)
+	}
+
+	if res.Body.String() != "GetOne" {
+		t.Errorf("Response body should be GetOne but got %s", res.Body.String())
+	}
+}
+
+func TestGetOne_RoutingOnStringParameter(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/item/hello", nil)
+	res := httptest.NewRecorder()
+
+	testRouter().ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 404 {
+		t.Errorf("Get all status code should be 404 but got %v", res.Result().StatusCode)
+	}
+}
+
+func TestGetOne_RoutingOnMixedParameter(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/item/12g1", nil)
+	res := httptest.NewRecorder()
+
+	testRouter().ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 404 {
+		t.Errorf("Get all status code should be 404 but got %v", res.Result().StatusCode)
+	}
 }
