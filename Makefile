@@ -40,4 +40,8 @@ migrateup:
 migratedown:
 	migrate -path db/migrations -database "postgresql://${DBUSER}:${DBPASS}@${DBHOST}:${DBPORT}/${DBNAME}?sslmode=disable" -verbose down
 
+migrateforce:
+	@echo "Enter migration number";
+	@read MIGRATION; migrate -path db/migrations -database "postgresql://${DBUSER}:${DBPASS}@${DBHOST}:${DBPORT}/${DBNAME}?sslmode=disable" force $$MIGRATION
+
 .PHONY: composeup composedown migratecreate migrateup migratedown

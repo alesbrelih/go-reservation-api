@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/alesbrelih/go-reservation-api/middleware"
 	"github.com/alesbrelih/go-reservation-api/pkg/myutil"
 	"github.com/alesbrelih/go-reservation-api/router"
 )
@@ -14,7 +15,7 @@ func main() {
 	mux := router.InitializeRouter()
 
 	// start server
-	err := http.ListenAndServe(":"+port, mux)
+	err := http.ListenAndServe(":"+port, middleware.StripTrailingSlash(mux))
 	if err != nil {
 		panic(err.Error())
 	}

@@ -1,7 +1,10 @@
 package myutil
 
 import (
+	"database/sql"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 )
 
@@ -16,4 +19,20 @@ func GetEnvOrDefault(envName string, fallback string) string {
 
 func MissingEnvVariableMsg(envName string) string {
 	return fmt.Sprintf("Missing enviroment variable: %v", envName)
+}
+
+func ValidateRowsAffected(res sql.Result, w http.ResponseWriter, log *log.Logger) error {
+	num, err := res.RowsAffected()
+	if err != nil {
+		log.Printf("Error with database: %v", err.Error())
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return err
+	}
+
+	if num == 0 {
+		http.Error(w, "No such item", http.StatusBadRequest)
+		return err
+	}
+
+	return nil
 }

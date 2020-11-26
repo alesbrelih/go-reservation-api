@@ -3,20 +3,27 @@ package item
 import (
 	"database/sql"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/alesbrelih/go-reservation-api/db"
+	"github.com/alesbrelih/go-reservation-api/middleware"
+	"github.com/alesbrelih/go-reservation-api/models"
+	"github.com/alesbrelih/go-reservation-api/pkg/myutil"
+	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
+
+var validate = validator.New()
 
 type ItemController interface {
 	GetAll(w http.ResponseWriter, req *http.Request)
 	GetOne(w http.ResponseWriter, req *http.Request)
 	Create(w http.ResponseWriter, req *http.Request)
+	Update(w http.ResponseWriter, req *http.Request)
+	Delete(w http.ResponseWriter, req *http.Request)
 }
 
 type DefaultItemController struct{}
@@ -25,7 +32,7 @@ func (h *DefaultItemController) GetAll(w http.ResponseWriter, req *http.Request)
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	items := []Item{}
+	items := []models.Item{}
 
 	query := "SELECT * FROM item"
 
@@ -39,7 +46,7 @@ func (h *DefaultItemController) GetAll(w http.ResponseWriter, req *http.Request)
 	}
 
 	for rows.Next() {
-		var item Item
+		var item models.Item
 
 		err = rows.Scan(&item.Id, &item.Title, &item.ShowFrom, &item.ShowTo)
 		if err != nil {
@@ -61,7 +68,6 @@ func (h *DefaultItemController) GetAll(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	w.Header().Add("content-type", "application/json")
 	w.Write(itemsJson)
 }
 
@@ -70,7 +76,7 @@ func (h *DefaultItemController) GetOne(w http.ResponseWriter, req *http.Request)
 
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
-		log.Printf("Can't parse id parameter to int: %v. Error: ", params["id"], err.Error())
+		log.Printf("Can't parse id parameter to int: %v. Error: %v", params["id"], err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Internal server error"))
 		return
@@ -79,7 +85,7 @@ func (h *DefaultItemController) GetOne(w http.ResponseWriter, req *http.Request)
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	var item Item
+	var item models.Item
 	stmt := "SELECT * FROM item WHERE id = $1"
 	row := myDb.QueryRow(stmt, int64(id))
 	err = row.Scan(&item.Id, &item.Title, &item.ShowFrom, &item.ShowTo)
@@ -97,6 +103,12 @@ func (h *DefaultItemController) GetOne(w http.ResponseWriter, req *http.Request)
 		}
 	}
 
+	// func (u User) MarshalJSON() ([]byte, error) {
+	// 	type user User // prevent recursion < transform to type so it doesnt use recursion!
+	// 	x := user(u) -> because uses MarshalJson is called by json.Marshal
+	// 	x.Password = ""
+	// 	return json.Marshal(x)
+	// }
 	itemJson, err := json.Marshal(item)
 	if err != nil {
 		log.Printf("Json marshal %v. Error: %v", item, err)
@@ -110,39 +122,13 @@ func (h *DefaultItemController) GetOne(w http.ResponseWriter, req *http.Request)
 }
 
 func (h *DefaultItemController) Create(w http.ResponseWriter, req *http.Request) {
-	itemBytes, err := ioutil.ReadAll(req.Body)
 
+	// .( ) <- type assertion
+	item := req.Context().Value(&middleware.ItemBodyKeyType{}).(*models.Item)
+
+	err := validate.Struct(item)
 	if err != nil {
-		log.Printf("Cant read Create item body: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
-		return
-	}
-
-	var item Item
-	err = json.Unmarshal(itemBytes, &item)
-	if err != nil {
-		log.Printf("Cannot unmarshal item: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
-		return
-	}
-
-	if item.Title == nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Missing property: Title"))
-		return
-	}
-
-	if item.ShowFrom == nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Missing property: ShowFrom"))
-		return
-	}
-
-	if item.ShowTo == nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Missing property: ShowTo"))
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -159,14 +145,85 @@ func (h *DefaultItemController) Create(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	w.Header().Add("content-type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *DefaultItemController) Update(w http.ResponseWriter, r *http.Request) {
+
+	item := r.Context().Value(&middleware.ItemBodyKeyType{}).(*models.Item)
+
+	err := validate.Struct(item)
+	if err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	myDb := db.Connect()
+	defer myDb.Close()
+
+	stmt := "UPDATE item SET title=$1, show_from=$2, show_to=$3 WHERE id = $4"
+	res, err := myDb.Exec(stmt, item.Title, item.ShowFrom, item.ShowTo, item.Id)
+	if err != nil {
+		log.Printf("Error saving to db: %v", err.Error())
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	err = myutil.ValidateRowsAffected(res, w, &log.Logger{})
+	if err != nil {
+		return
+	}
+}
+
+func (h *DefaultItemController) Delete(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	id, err := strconv.Atoi(params["id"])
+	if err != nil {
+		log.Printf("Can't parse id parameter to int: %v. Error: %v", params["id"], err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal server error"))
+		return
+	}
+
+	myDb := db.Connect()
+	defer myDb.Close()
+
+	stmt := "DELETE FROM item WHERE id = $1"
+	res, err := myDb.Exec(stmt, int64(id))
+	if err != nil {
+		log.Printf("Error deleting item id %v from db. Error: %v", id, err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal server error"))
+		return
+	}
+
+	err = myutil.ValidateRowsAffected(res, w, &log.Logger{})
+	if err != nil {
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func Router(controller ItemController) *mux.Router {
 	r := mux.NewRouter()
-	r.HandleFunc("/item", controller.GetAll).Methods("GET")
-	r.HandleFunc("/item/{id:[\\d]+}", controller.GetOne).Methods("GET")
-	r.HandleFunc("/item", controller.Create).Methods("POST")
+
+	middleware := middleware.NewItemMiddleware(&log.Logger{})
+
+	getSubrouter := r.Methods(http.MethodGet).Subrouter()
+	getSubrouter.HandleFunc("/item", controller.GetAll)
+	getSubrouter.HandleFunc("/item/{id:[\\d]+}", controller.GetOne)
+
+	postSubrouter := r.Methods(http.MethodPost).Subrouter()
+	postSubrouter.HandleFunc("/item", controller.Create)
+	postSubrouter.Use(middleware.GetBody)
+
+	putSubrouter := r.Methods(http.MethodPut).Subrouter()
+	putSubrouter.HandleFunc("/item", controller.Update)
+	putSubrouter.Use(middleware.GetBody)
+
+	deleteSubgrouter := r.Methods(http.MethodDelete).Subrouter()
+	deleteSubgrouter.HandleFunc("/item/{id:[\\d]+}", controller.Delete)
+
 	return r
 }
