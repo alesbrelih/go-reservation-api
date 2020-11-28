@@ -1,4 +1,4 @@
-package item_test
+package controller
 
 import (
 	"net/http"

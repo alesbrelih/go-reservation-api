@@ -6,6 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // https://github.com/joeshaw/envdecode <- maybe try to use this
@@ -35,4 +38,18 @@ func ValidateRowsAffected(res sql.Result, w http.ResponseWriter, log *log.Logger
 	}
 
 	return nil
+}
+
+func Empty(str string) bool {
+	return len(strings.TrimSpace(str)) == 0
+}
+
+func HashPassword(password string, cost int) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), cost)
+	return string(bytes), err
+}
+
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err != nil
 }

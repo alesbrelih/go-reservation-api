@@ -1,4 +1,4 @@
-package item
+package controller
 
 import (
 	"database/sql"
@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/alesbrelih/go-reservation-api/db"
+	"github.com/alesbrelih/go-reservation-api/interfaces"
 	"github.com/alesbrelih/go-reservation-api/middleware"
 	"github.com/alesbrelih/go-reservation-api/models"
 	"github.com/alesbrelih/go-reservation-api/pkg/myutil"
@@ -19,11 +20,7 @@ import (
 var validate = validator.New()
 
 type ItemController interface {
-	GetAll(w http.ResponseWriter, req *http.Request)
-	GetOne(w http.ResponseWriter, req *http.Request)
-	Create(w http.ResponseWriter, req *http.Request)
-	Update(w http.ResponseWriter, req *http.Request)
-	Delete(w http.ResponseWriter, req *http.Request)
+	interfaces.Controller
 }
 
 type DefaultItemController struct{}
@@ -32,6 +29,15 @@ func (h *DefaultItemController) GetAll(w http.ResponseWriter, req *http.Request)
 	myDb := db.Connect()
 	defer myDb.Close()
 
+	items, err := h.getItemsFromDb(myDb)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+
+	items.ToJSON(w)
+}
+
+func (h *DefaultItemController) getItemsFromDb(myDb *sql.DB) (models.Items, error) {
 	items := []models.Item{}
 
 	query := "SELECT * FROM item"
@@ -40,9 +46,7 @@ func (h *DefaultItemController) GetAll(w http.ResponseWriter, req *http.Request)
 
 	if err != nil {
 		log.Printf("Query error: %v, err: %v", query, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
-		return
+		return nil, err
 	}
 
 	for rows.Next() {
@@ -51,24 +55,13 @@ func (h *DefaultItemController) GetAll(w http.ResponseWriter, req *http.Request)
 		err = rows.Scan(&item.Id, &item.Title, &item.ShowFrom, &item.ShowTo)
 		if err != nil {
 			log.Printf("Query scan error: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Internal server error"))
-			return
+			return nil, err
 		}
 
 		items = append(items, item)
 	}
+	return items, nil
 
-	itemsJson, err := json.Marshal(items)
-
-	if err != nil {
-		log.Printf("Json marshal %v. Error: %v", items, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
-		return
-	}
-
-	w.Write(itemsJson)
 }
 
 func (h *DefaultItemController) GetOne(w http.ResponseWriter, req *http.Request) {
@@ -128,7 +121,7 @@ func (h *DefaultItemController) Create(w http.ResponseWriter, req *http.Request)
 
 	err := validate.Struct(item)
 	if err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -205,7 +198,7 @@ func (h *DefaultItemController) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func Router(controller ItemController) *mux.Router {
+func NewItemRouter(controller ItemController) *mux.Router {
 	r := mux.NewRouter()
 
 	middleware := middleware.NewItemMiddleware(&log.Logger{})
