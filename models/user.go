@@ -19,9 +19,9 @@ type UserReqBody struct {
 	FirstName string `json:"firstName" create:"required,gt=1" update:"required,gt=1"`
 	LastName  string `json:"lastName" create:"required,gt=1" update:"required,gt=1"`
 	Username  string `json:"username" create:"required,gt=6" update:"omitempty"`
-	Email     string `json:"email" create:"required" update:"required"`
-	Password  string `json:"password,omitempty" create:"required" update:"omitempty"`
-	Confirm   string `json:"confirm,omitempty" create:"required" update:"omitempty"`
+	Email     string `json:"email" create:"required,email" update:"required,email"`
+	Password  string `json:"password,omitempty" create:"required,gt=6,eqfield=Confirm" update:"omitempty,gt=6,eqfield=Confirm"`
+	Confirm   string `json:"confirm,omitempty,gt=6" create:"required,gt=6,eqfield=Password" update:"omitempty,gt=6,eqfield=Password"`
 }
 
 func (u *UserReqBody) FromJSON(r io.Reader) error {

@@ -321,3 +321,537 @@ func TestUser_Create_BadRequest_ShortUsername(t *testing.T) {
 		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
 	}
 }
+
+func TestUser_Create_BadRequest_MissingEmail(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Create", mock.Anything).Return(int64(1), nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":null,"password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("POST", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Email' Error:Field validation for 'Email' failed on the 'required' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Create_BadRequest_BadEmail(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Create", mock.Anything).Return(int64(1), nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":"john.doe","password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("POST", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Email' Error:Field validation for 'Email' failed on the 'email' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+func TestUser_Create_BadRequest_MissingPassword(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Create", mock.Anything).Return(int64(1), nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":"john.doe@does.com","password":null, "confirm":"password"}`)
+	req, _ := http.NewRequest("POST", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Password' Error:Field validation for 'Password' failed on the 'required' tag\nKey: 'UserReqBody.Confirm' Error:Field validation for 'Confirm' failed on the 'eqfield' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Create_BadRequest_ShortPassword(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Create", mock.Anything).Return(int64(1), nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":"john.doe@does.com","password":"shors", "confirm":"password"}`)
+	req, _ := http.NewRequest("POST", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Password' Error:Field validation for 'Password' failed on the 'gt' tag\nKey: 'UserReqBody.Confirm' Error:Field validation for 'Confirm' failed on the 'eqfield' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Create_BadRequest_MissingConfirm(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Create", mock.Anything).Return(int64(1), nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":"john.doe@does.com","password":"password", "confirm":null}`)
+	req, _ := http.NewRequest("POST", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Password' Error:Field validation for 'Password' failed on the 'eqfield' tag\nKey: 'UserReqBody.Confirm' Error:Field validation for 'Confirm' failed on the 'required' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Create_BadRequest_ShortConfirm(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Create", mock.Anything).Return(int64(1), nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":"john.doe@does.com","password":"shorsts", "confirm":"passw"}`)
+	req, _ := http.NewRequest("POST", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Password' Error:Field validation for 'Password' failed on the 'eqfield' tag\nKey: 'UserReqBody.Confirm' Error:Field validation for 'Confirm' failed on the 'gt' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Create_BadRequest_PasswordDontMatch(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Create", mock.Anything).Return(int64(1), nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":"john.doe@does.com","password":"shorsts", "confirm":"passwaa"}`)
+	req, _ := http.NewRequest("POST", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Password' Error:Field validation for 'Password' failed on the 'eqfield' tag\nKey: 'UserReqBody.Confirm' Error:Field validation for 'Confirm' failed on the 'eqfield' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+func TestUser_Create_DbError(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Create", mock.Anything).Return(int64(0), errors.New("Some error"))
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":"john.doe@does.com","password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("POST", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 500 {
+		t.Errorf("Get all status code should be 500 but got %v", res.Result().StatusCode)
+	}
+
+	if res.Body.String() != "Internal server error\n" {
+		t.Errorf("Response body should be %#v but got %#v", "Internal server error", res.Body.String())
+	}
+}
+
+func TestUser_Update_Success(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":"john","lastName":"doe","email":"john.doe@does.com","password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 200 {
+		t.Errorf("Get all status code should be 200 but got %v", res.Result().StatusCode)
+	}
+
+	if res.Body.String() != "" {
+		t.Errorf("Excepted res body to be \"\" but got: %v", res.Body.String())
+	}
+
+	json := &models.UserReqBody{}
+	json.FromJSON(bytes.NewBuffer(jsonStr))
+	userStore.AssertCalled(t, "Update", json)
+}
+
+func TestUser_Update_Success_NoPass(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":"john","lastName":"doe","email":"john.doe@does.com"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 200 {
+		t.Errorf("Get all status code should be 200 but got %v", res.Result().StatusCode)
+	}
+
+	if res.Body.String() != "" {
+		t.Errorf("Excepted res body to be \"\" but got: %v", res.Body.String())
+	}
+
+	json := &models.UserReqBody{}
+	json.FromJSON(bytes.NewBuffer(jsonStr))
+	userStore.AssertCalled(t, "Update", json)
+}
+func TestUser_Update_BadRequest_MissingId(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"firstName":"John","lastName":"doe","email":"john.doe@does.com","password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Id' Error:Field validation for 'Id' failed on the 'required' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Update_BadRequest_MissingName(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":null,"lastName":"doe","email":"john.doe@does.com","password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.FirstName' Error:Field validation for 'FirstName' failed on the 'required' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Update_BadRequest_ShortName(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":"e","lastName":"doe","email":"john.doe@does.com","password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.FirstName' Error:Field validation for 'FirstName' failed on the 'gt' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Update_BadRequest_MissingLastName(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":"John","lastName":null,"email":"john.doe@does.com","password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.LastName' Error:Field validation for 'LastName' failed on the 'required' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Update_BadRequest_ShortLastName(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":"John","lastName":"d","email":"john.doe@does.com","password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.LastName' Error:Field validation for 'LastName' failed on the 'gt' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Update_BadRequest_MissingEmail(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":null,"password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Email' Error:Field validation for 'Email' failed on the 'required' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Update_BadRequest_BadEmail(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":"john.doe","password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Email' Error:Field validation for 'Email' failed on the 'email' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Update_BadRequest_PasswordDontMatch(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":"john.doe@does.com","password":"shorsts", "confirm":"passwaa"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Password' Error:Field validation for 'Password' failed on the 'eqfield' tag\nKey: 'UserReqBody.Confirm' Error:Field validation for 'Confirm' failed on the 'eqfield' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+func TestUser_Update_BadRequest_PasswordDontMatch_2(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":"john.doe@does.com","password":null, "confirm":"passwaaa"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Confirm' Error:Field validation for 'Confirm' failed on the 'eqfield' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Update_BadRequest_PasswordDontMatch_3(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(nil)
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":"John","lastName":"Doe","username":"john.doe@does.com","email":"john.doe@does.com","password":"aaaaaaa", "confirm":null}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	expectedErr := "Key: 'UserReqBody.Password' Error:Field validation for 'Password' failed on the 'eqfield' tag\n"
+	if res.Body.String() != expectedErr {
+		t.Errorf("Expectes body to be: %v but got: %v", expectedErr, res.Body.String())
+	}
+}
+
+func TestUser_Update_DbError(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Update", mock.Anything).Return(errors.New("Some error"))
+	router := userRouter(userStore, t)
+
+	jsonStr := []byte(`{"id":1,"firstName":"John","lastName":"Doe","email":"john.doe@does.com","password":"password", "confirm":"password"}`)
+	req, _ := http.NewRequest("PUT", "/user", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 500 {
+		t.Errorf("Get all status code should be 500 but got %v", res.Result().StatusCode)
+	}
+
+	if res.Body.String() != "Internal server error\n" {
+		t.Errorf("Response body should be %#v but got %#v", "Internal server error", res.Body.String())
+	}
+}
+
+func TestUser_Delete_GetResult(t *testing.T) {
+
+	req, _ := http.NewRequest("DELETE", "/user/1", nil)
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Delete", int64(1)).Return(nil)
+	router := userRouter(userStore, t)
+
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 200 {
+		t.Errorf("Get all status code should be 200 but got %v", res.Result().StatusCode)
+	}
+
+	expected := ""
+	if res.Body.String() != expected {
+		t.Errorf("Response body should be %#v but got %#v", expected, res.Body.String())
+	}
+
+	userStore.AssertExpectations(t)
+}
+
+func TestUser_Delete_RoutingOnStringParameter(t *testing.T) {
+	userStore := &MyFakeUserStore{}
+	router := userRouter(userStore, t)
+
+	req, _ := http.NewRequest("DELETE", "/user/hello", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 404 {
+		t.Errorf("Get all status code should be 404 but got %v", res.Result().StatusCode)
+	}
+}
+
+func TestUser_Delete_RoutingOnMixedParameter(t *testing.T) {
+	userStore := &MyFakeUserStore{}
+	router := userRouter(userStore, t)
+
+	req, _ := http.NewRequest("DELETE", "/user/12g1", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 404 {
+		t.Errorf("Get all status code should be 404 but got %v", res.Result().StatusCode)
+	}
+}
+
+func TestUser_Delete_DbError(t *testing.T) {
+
+	userStore := &MyFakeUserStore{}
+	userStore.On("Delete", int64(1)).Return(errors.New("Some error"))
+	router := userRouter(userStore, t)
+
+	req, _ := http.NewRequest("DELETE", "/user/1", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 500 {
+		t.Errorf("Get all status code should be 500 but got %v", res.Result().StatusCode)
+	}
+
+	if res.Body.String() != "Internal server error\n" {
+		t.Errorf("Response body should be %#v but got %#v", "Internal server error", res.Body.String())
+	}
+}
