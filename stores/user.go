@@ -19,7 +19,7 @@ func (u *UserStoreSql) GetAll(ctx context.Context) (models.Users, error) {
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	query := "SELECT id, first_name, last_name, username, email FROM reservations.public.user"
+	query := "SELECT id, first_name, last_name, username, email FROM reservation_user"
 	rows, err := myDb.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (u *UserStoreSql) GetOne(ctx context.Context, id int64) (*models.User, erro
 
 	user := &models.User{}
 
-	stmt := "SELECT id, first_name, last_name, username, email FROM reservations.public.user WHERE id = $1"
+	stmt := "SELECT id, first_name, last_name, username, email FROM reservation_user WHERE id = $1"
 	res := myDb.QueryRowContext(ctx, stmt, id)
 	err := res.Scan(&user.Id, &user.FirstName, &user.LastName, &user.Username, &user.Email)
 
@@ -64,7 +64,7 @@ func (u *UserStoreSql) Create(user *models.UserReqBody) (int64, error) {
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	stmt := `INSERT INTO reservations.public.user (first_name, last_name, username, email, pass) 
+	stmt := `INSERT INTO reservation_user (first_name, last_name, username, email, pass) 
 		VALUES ($1, $2, $3, $4, $5)`
 
 	password, err := u.setPassword(user)
@@ -84,7 +84,7 @@ func (u *UserStoreSql) Update(user *models.UserReqBody) error {
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	stmt := `UPDATE reservations.public.user 
+	stmt := `UPDATE reservation_user 
 			SET first_name = $2,
 			last_name = $3,
 			email = $4,
@@ -127,7 +127,7 @@ func (u *UserStoreSql) Delete(id int64) error {
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	stmt := "DELETE FROM reservations.public.user WHERE id = $1"
+	stmt := "DELETE FROM reservation_user WHERE id = $1"
 
 	res, err := myDb.Exec(stmt, id)
 	if err != nil {
