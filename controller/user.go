@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -13,8 +14,8 @@ import (
 )
 
 type UserStore interface {
-	GetAll() (models.Users, error)
-	GetOne(id int64) (*models.User, error)
+	GetAll(ctx context.Context) (models.Users, error)
+	GetOne(ctx context.Context, id int64) (*models.User, error)
 	Create(*models.UserReqBody) (int64, error)
 	Update(*models.UserReqBody) error
 	Delete(id int64) error
@@ -25,7 +26,7 @@ type DefaultUserController struct {
 }
 
 func (c *UserHandler) getAll(w http.ResponseWriter, r *http.Request) {
-	items, err := c.store.GetAll()
+	items, err := c.store.GetAll(r.Context())
 	if err != nil {
 		c.log.Printf("Error retrieving users: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -40,7 +41,7 @@ func (c *UserHandler) getOne(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, _ := strconv.Atoi(params["id"]) // validated by regex already
 
-	item, err := c.store.GetOne(int64(id))
+	item, err := c.store.GetOne(r.Context(), int64(id))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Bad request", http.StatusBadRequest)
@@ -58,6 +59,14 @@ func (c *UserHandler) create(w http.ResponseWriter, r *http.Request) {
 
 	user := r.Context().Value(&middleware.UserBodyContextKey{}).(*models.UserReqBody)
 
+	// validate
+	Validate.SetTagName("create")
+	err := Validate.Struct(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	id, err := c.store.Create(user)
 	if err != nil {
 		c.log.Printf("Error creating user. Error: %v", user)
@@ -73,13 +82,23 @@ func (c *UserHandler) create(w http.ResponseWriter, r *http.Request) {
 func (c *UserHandler) update(w http.ResponseWriter, r *http.Request) {
 
 	user := r.Context().Value(&middleware.UserBodyContextKey{}).(*models.UserReqBody)
-	err := c.store.Update(user)
+
+	// validate
+	// TODO: shouldn tgo through
+	Validate.SetTagName("update")
+	err := Validate.Struct(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = c.store.Update(user)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
 		}
-		c.log.Printf("Error updating user. Error: %v", user)
+		c.log.Printf("Error updating user: %#v. Error: %v", user, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -111,15 +130,19 @@ type UserHandler struct {
 func (h *UserHandler) NewRouter() *mux.Router {
 	r := mux.NewRouter()
 
+	middleware := middleware.NewUserMiddleware()
+
 	get := r.Methods(http.MethodGet).Subrouter()
 	get.HandleFunc("/user", h.getAll)
 	get.HandleFunc("/user/{id:[\\d]+}", h.getOne)
 
 	post := r.Methods(http.MethodPost).Subrouter()
 	post.HandleFunc("/user", h.create)
+	post.Use(middleware.GetBody)
 
 	put := r.Methods(http.MethodPut).Subrouter()
 	put.HandleFunc("/user", h.update)
+	put.Use(middleware.GetBody)
 
 	delete := r.Methods(http.MethodDelete).Subrouter()
 	delete.HandleFunc("/user/{id:[\\d]+}", h.delete)

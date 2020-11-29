@@ -1,6 +1,7 @@
 package stores
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -13,13 +14,13 @@ var PasswordMissmatch = errors.New("Passwords missmatch")
 
 type UserStoreSql struct{}
 
-func (u *UserStoreSql) GetAll() (models.Users, error) {
+func (u *UserStoreSql) GetAll(ctx context.Context) (models.Users, error) {
 
 	myDb := db.Connect()
 	defer myDb.Close()
 
 	query := "SELECT id, first_name, last_name, username, email FROM reservations.public.user"
-	rows, err := myDb.Query(query)
+	rows, err := myDb.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -42,14 +43,14 @@ func (u *UserStoreSql) GetAll() (models.Users, error) {
 
 }
 
-func (u *UserStoreSql) GetOne(id int64) (*models.User, error) {
+func (u *UserStoreSql) GetOne(ctx context.Context, id int64) (*models.User, error) {
 	myDb := db.Connect()
 	defer myDb.Close()
 
 	user := &models.User{}
 
-	stmt := "SELECT id, first_name, last_name, username, email FROM user WHERE id = $1"
-	res := myDb.QueryRow(stmt, id)
+	stmt := "SELECT id, first_name, last_name, username, email FROM reservations.public.user WHERE id = $1"
+	res := myDb.QueryRowContext(ctx, stmt, id)
 	err := res.Scan(&user.Id, &user.FirstName, &user.LastName, &user.Username, &user.Email)
 
 	if err != nil {
@@ -63,7 +64,7 @@ func (u *UserStoreSql) Create(user *models.UserReqBody) (int64, error) {
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	stmt := `INSERT INTO user (first_name, last_name, username, email, password) 
+	stmt := `INSERT INTO reservations.public.user (first_name, last_name, username, email, pass) 
 		VALUES ($1, $2, $3, $4, $5)`
 
 	password, err := u.setPassword(user)
@@ -83,11 +84,11 @@ func (u *UserStoreSql) Update(user *models.UserReqBody) error {
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	stmt := `UPDATE user 
+	stmt := `UPDATE reservations.public.user 
 			SET first_name = $2,
 			last_name = $3,
 			email = $4,
-			password = COALESCE($5, password) WHERE id = $1`
+			pass = COALESCE($5, passw) WHERE id = $1`
 
 	password, err := u.setPassword(user)
 	if err != nil {
@@ -126,7 +127,7 @@ func (u *UserStoreSql) Delete(id int64) error {
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	stmt := "DELETE user WHERE id = $1"
+	stmt := "DELETE FROM reservations.public.user WHERE id = $1"
 
 	res, err := myDb.Exec(stmt, id)
 	if err != nil {

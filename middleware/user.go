@@ -30,3 +30,7 @@ func (u *User) GetBody(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
+
+func NewUserMiddleware() *User {
+	return &User{}
+}

@@ -17,7 +17,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var validate = validator.New()
+var Validate = validator.New()
 
 type ItemController interface {
 	interfaces.Controller
@@ -119,7 +119,7 @@ func (h *DefaultItemController) Create(w http.ResponseWriter, req *http.Request)
 	// .( ) <- type assertion
 	item := req.Context().Value(&middleware.ItemBodyKeyType{}).(*models.Item)
 
-	err := validate.Struct(item)
+	err := Validate.Struct(item)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -145,7 +145,7 @@ func (h *DefaultItemController) Update(w http.ResponseWriter, r *http.Request) {
 
 	item := r.Context().Value(&middleware.ItemBodyKeyType{}).(*models.Item)
 
-	err := validate.Struct(item)
+	err := Validate.Struct(item)
 	if err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return

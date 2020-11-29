@@ -15,7 +15,7 @@ type User struct {
 }
 
 type UserReqBody struct {
-	Id        int64  `json:"id" create:"number,omitempty" update:"number"`
+	Id        int64  `json:"id" create:"number,omitempty" update:"required,number"`
 	FirstName string `json:"firstName" create:"required" update:"required"`
 	LastName  string `json:"lastName" create:"required" update:"required"`
 	Username  string `json:"username" create:"required" update:"omitempty"`
