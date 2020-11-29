@@ -16,12 +16,12 @@ type User struct {
 
 type UserReqBody struct {
 	Id        int64  `json:"id" create:"number,omitempty" update:"required,number"`
-	FirstName string `json:"firstName" create:"required" update:"required"`
-	LastName  string `json:"lastName" create:"required" update:"required"`
-	Username  string `json:"username" create:"required" update:"omitempty"`
+	FirstName string `json:"firstName" create:"required,gt=1" update:"required,gt=1"`
+	LastName  string `json:"lastName" create:"required,gt=1" update:"required,gt=1"`
+	Username  string `json:"username" create:"required,gt=6" update:"omitempty"`
 	Email     string `json:"email" create:"required" update:"required"`
-	Password  string `json:"password,omitempty" create:"omitempty" update:"omitempty"`
-	Confirm   string `json:"confirm,omitempty" create:"omitempty" update:"omitempty"`
+	Password  string `json:"password,omitempty" create:"required" update:"omitempty"`
+	Confirm   string `json:"confirm,omitempty" create:"required" update:"omitempty"`
 }
 
 func (u *UserReqBody) FromJSON(r io.Reader) error {

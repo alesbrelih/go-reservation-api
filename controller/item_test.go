@@ -142,6 +142,8 @@ func TestItem_GetOne_GetResult(t *testing.T) {
 	if res.Body.String() != buf.String() {
 		t.Errorf("Response body should be %#v but got %#v", buf.String(), res.Body.String())
 	}
+
+	itemStore.AssertExpectations(t)
 }
 
 func TestItem_GetOne_RoutingOnStringParameter(t *testing.T) {
@@ -387,6 +389,8 @@ func TestItem_Delete_GetResult(t *testing.T) {
 	if res.Body.String() != expected {
 		t.Errorf("Response body should be %#v but got %#v", expected, res.Body.String())
 	}
+
+	itemStore.AssertExpectations(t)
 }
 
 func TestItem_Delete_RoutingOnStringParameter(t *testing.T) {
