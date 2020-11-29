@@ -1,21 +1,26 @@
 package models
 
 import (
-	"database/sql"
 	"encoding/json"
 	"io"
+	"time"
 )
 
 type Item struct {
-	Id       int64        `json:"id" validate:"number,omitempty"`
-	Title    string       `json:"title" validate:"required,gt=3"`
-	ShowFrom sql.NullTime `json:"showFrom"`
-	ShowTo   sql.NullTime `json:"showTo"`
+	Id       int64      `json:"id" create:"number,omitempty" update:"required,number"`
+	Title    *string    `json:"title" create:"required,gt=3" update:"required,gt=3"`
+	ShowFrom *time.Time `json:"showFrom"`
+	ShowTo   *time.Time `json:"showTo,omitempty"`
 }
 
 func (i *Item) FromJSON(r io.Reader) error {
 	d := json.NewDecoder(r)
 	return d.Decode(i)
+}
+
+func (i *Item) ToJSON(w io.Writer) error {
+	e := json.NewEncoder(w)
+	return e.Encode(i)
 }
 
 type Items []Item

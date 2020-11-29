@@ -21,10 +21,6 @@ type UserStore interface {
 	Delete(id int64) error
 }
 
-type DefaultUserController struct {
-	log *log.Logger
-}
-
 func (c *UserHandler) getAll(w http.ResponseWriter, r *http.Request) {
 	items, err := c.store.GetAll(r.Context())
 	if err != nil {
@@ -60,8 +56,8 @@ func (c *UserHandler) create(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(&middleware.UserBodyContextKey{}).(*models.UserReqBody)
 
 	// validate
-	Validate.SetTagName("create")
-	err := Validate.Struct(user)
+	createValidate.SetTagName("create")
+	err := createValidate.Struct(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -85,8 +81,8 @@ func (c *UserHandler) update(w http.ResponseWriter, r *http.Request) {
 
 	// validate
 	// TODO: shouldn tgo through
-	Validate.SetTagName("update")
-	err := Validate.Struct(user)
+	updateValidate.SetTagName("update")
+	err := updateValidate.Struct(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

@@ -1,222 +1,167 @@
 package controller
 
 import (
+	"context"
 	"database/sql"
-	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
-	"github.com/alesbrelih/go-reservation-api/db"
-	"github.com/alesbrelih/go-reservation-api/interfaces"
 	"github.com/alesbrelih/go-reservation-api/middleware"
 	"github.com/alesbrelih/go-reservation-api/models"
-	"github.com/alesbrelih/go-reservation-api/pkg/myutil"
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
 
-var Validate = validator.New()
+var createValidate *validator.Validate
+var updateValidate *validator.Validate
 
-type ItemController interface {
-	interfaces.Controller
+func init() {
+	createValidate = validator.New()
+	createValidate.SetTagName("create")
+
+	updateValidate = validator.New()
+	updateValidate.SetTagName("update")
 }
 
-type DefaultItemController struct{}
+type ItemStore interface {
+	GetAll(ctx context.Context) (models.Items, error)
+	GetOne(ctx context.Context, id int64) (*models.Item, error)
+	Create(*models.Item) (int64, error)
+	Update(*models.Item) error
+	Delete(id int64) error
+}
 
-func (h *DefaultItemController) GetAll(w http.ResponseWriter, req *http.Request) {
-	myDb := db.Connect()
-	defer myDb.Close()
+type ItemHandler struct {
+	log   *log.Logger
+	store ItemStore
+}
 
-	items, err := h.getItemsFromDb(myDb)
+func (h *ItemHandler) getAll(w http.ResponseWriter, r *http.Request) {
+	items, err := h.store.GetAll(r.Context())
 	if err != nil {
+		h.log.Printf("Error retrieving items: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
 	}
 
 	items.ToJSON(w)
+
 }
 
-func (h *DefaultItemController) getItemsFromDb(myDb *sql.DB) (models.Items, error) {
-	items := []models.Item{}
+func (h *ItemHandler) getOne(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id, _ := strconv.Atoi(params["id"]) // validated by regex already
 
-	query := "SELECT * FROM item"
-
-	rows, err := myDb.Query(query)
-
+	item, err := h.store.GetOne(r.Context(), int64(id))
 	if err != nil {
-		log.Printf("Query error: %v, err: %v", query, err)
-		return nil, err
-	}
-
-	for rows.Next() {
-		var item models.Item
-
-		err = rows.Scan(&item.Id, &item.Title, &item.ShowFrom, &item.ShowTo)
-		if err != nil {
-			log.Printf("Query scan error: %v", err)
-			return nil, err
+		if err == sql.ErrNoRows {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
 		}
-
-		items = append(items, item)
-	}
-	return items, nil
-
-}
-
-func (h *DefaultItemController) GetOne(w http.ResponseWriter, req *http.Request) {
-	params := mux.Vars(req)
-
-	id, err := strconv.Atoi(params["id"])
-	if err != nil {
-		log.Printf("Can't parse id parameter to int: %v. Error: %v", params["id"], err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
+		h.log.Printf("Error retrieving item with id: %v. Error: %v", id, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	myDb := db.Connect()
-	defer myDb.Close()
-
-	var item models.Item
-	stmt := "SELECT * FROM item WHERE id = $1"
-	row := myDb.QueryRow(stmt, int64(id))
-	err = row.Scan(&item.Id, &item.Title, &item.ShowFrom, &item.ShowTo)
-	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			w.WriteHeader(http.StatusNotFound)
-			w.Write(nil)
-			return
-		default:
-			log.Printf("Internal server error: %v", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Internal server error"))
-			return
-		}
-	}
-
-	// func (u User) MarshalJSON() ([]byte, error) {
-	// 	type user User // prevent recursion < transform to type so it doesnt use recursion!
-	// 	x := user(u) -> because uses MarshalJson is called by json.Marshal
-	// 	x.Password = ""
-	// 	return json.Marshal(x)
-	// }
-	itemJson, err := json.Marshal(item)
-	if err != nil {
-		log.Printf("Json marshal %v. Error: %v", item, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
-		return
-	}
-
-	w.Header().Add("content-type", "application/json")
-	w.Write([]byte(itemJson))
+	item.ToJSON(w)
 }
 
-func (h *DefaultItemController) Create(w http.ResponseWriter, req *http.Request) {
+func (h *ItemHandler) create(w http.ResponseWriter, req *http.Request) {
 
 	// .( ) <- type assertion
 	item := req.Context().Value(&middleware.ItemBodyKeyType{}).(*models.Item)
 
-	err := Validate.Struct(item)
+	createValidate.SetTagName("create")
+	err := createValidate.Struct(item)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	myDb := db.Connect()
-	defer myDb.Close()
-
-	stmt := "INSERT INTO item (title, show_from, show_to) VALUES ($1, $2, $3)"
-	_, err = myDb.Exec(stmt, item.Title, item.ShowFrom, item.ShowTo)
+	id, err := h.store.Create(item)
 
 	if err != nil {
-		log.Printf("Error saving to db: %v", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-}
-
-func (h *DefaultItemController) Update(w http.ResponseWriter, r *http.Request) {
-
-	item := r.Context().Value(&middleware.ItemBodyKeyType{}).(*models.Item)
-
-	err := Validate.Struct(item)
-	if err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	myDb := db.Connect()
-	defer myDb.Close()
-
-	stmt := "UPDATE item SET title=$1, show_from=$2, show_to=$3 WHERE id = $4"
-	res, err := myDb.Exec(stmt, item.Title, item.ShowFrom, item.ShowTo, item.Id)
-	if err != nil {
-		log.Printf("Error saving to db: %v", err.Error())
+		h.log.Printf("Error creating item: %#v. Error: %v", item, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	err = myutil.ValidateRowsAffected(res, w, &log.Logger{})
-	if err != nil {
-		return
-	}
+	w.WriteHeader(http.StatusCreated)
+	w.Header().Add("content-type", "application/json")
+	fmt.Fprint(w, id)
 }
 
-func (h *DefaultItemController) Delete(w http.ResponseWriter, r *http.Request) {
+func (h *ItemHandler) update(w http.ResponseWriter, r *http.Request) {
+
+	item := r.Context().Value(&middleware.ItemBodyKeyType{}).(*models.Item)
+
+	updateValidate.SetTagName("update")
+	err := updateValidate.Struct(item)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = h.store.Update(item)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+		h.log.Printf("Error updating item: %#v. Error: %v", item, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func (h *ItemHandler) delete(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
-	id, err := strconv.Atoi(params["id"])
+	id, _ := strconv.Atoi(params["id"])
+
+	err := h.store.Delete(int64(id))
 	if err != nil {
-		log.Printf("Can't parse id parameter to int: %v. Error: %v", params["id"], err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
+		if err == sql.ErrNoRows {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+		h.log.Printf("Error deleting item with id: %v. Error: %v", id, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
-	myDb := db.Connect()
-	defer myDb.Close()
-
-	stmt := "DELETE FROM item WHERE id = $1"
-	res, err := myDb.Exec(stmt, int64(id))
-	if err != nil {
-		log.Printf("Error deleting item id %v from db. Error: %v", id, err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal server error"))
-		return
-	}
-
-	err = myutil.ValidateRowsAffected(res, w, &log.Logger{})
-	if err != nil {
-		return
-	}
-	w.WriteHeader(http.StatusAccepted)
 }
 
-func NewItemRouter(controller ItemController) *mux.Router {
+func (h *ItemHandler) NewItemRouter() *mux.Router {
 	r := mux.NewRouter()
 
-	middleware := middleware.NewItemMiddleware(&log.Logger{})
+	middleware := middleware.NewItemMiddleware(log.New(os.Stdout, "item-middleware ", log.LstdFlags))
 
 	getSubrouter := r.Methods(http.MethodGet).Subrouter()
-	getSubrouter.HandleFunc("/item", controller.GetAll)
-	getSubrouter.HandleFunc("/item/{id:[\\d]+}", controller.GetOne)
+	getSubrouter.HandleFunc("/item", h.getAll)
+	getSubrouter.HandleFunc("/item/{id:[\\d]+}", h.getOne)
 
 	postSubrouter := r.Methods(http.MethodPost).Subrouter()
-	postSubrouter.HandleFunc("/item", controller.Create)
+	postSubrouter.HandleFunc("/item", h.create)
 	postSubrouter.Use(middleware.GetBody)
 
 	putSubrouter := r.Methods(http.MethodPut).Subrouter()
-	putSubrouter.HandleFunc("/item", controller.Update)
+	putSubrouter.HandleFunc("/item", h.update)
 	putSubrouter.Use(middleware.GetBody)
 
 	deleteSubgrouter := r.Methods(http.MethodDelete).Subrouter()
-	deleteSubgrouter.HandleFunc("/item/{id:[\\d]+}", controller.Delete)
+	deleteSubgrouter.HandleFunc("/item/{id:[\\d]+}", h.delete)
 
 	return r
+}
+
+func NewItemHandler(store ItemStore, log *log.Logger) *ItemHandler {
+	return &ItemHandler{
+		store: store,
+		log:   log,
+	}
 }

@@ -11,7 +11,9 @@ import (
 
 func InitializeRouter() *mux.Router {
 	r := mux.NewRouter()
-	r.PathPrefix("/item").Handler(controller.NewItemRouter(&controller.DefaultItemController{}))
+
+	itemHandler := controller.NewItemHandler(&stores.ItemStoreSql{}, log.New(os.Stdout, "item-controller ", log.LstdFlags))
+	r.PathPrefix("/item").Handler(itemHandler.NewItemRouter())
 
 	// user handler
 	userHandler := controller.NewUserHandler(&stores.UserStoreSql{}, log.New(os.Stdout, "user-controller ", log.LstdFlags))
