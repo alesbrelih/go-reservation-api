@@ -11,7 +11,7 @@ import (
 type UserBodyContextKey struct{}
 
 type User struct {
-	log log.Logger
+	log *log.Logger
 }
 
 func (u *User) GetBody(next http.Handler) http.Handler {
@@ -31,6 +31,8 @@ func (u *User) GetBody(next http.Handler) http.Handler {
 	})
 }
 
-func NewUserMiddleware() *User {
-	return &User{}
+func NewUserMiddleware(log *log.Logger) *User {
+	return &User{
+		log: log,
+	}
 }

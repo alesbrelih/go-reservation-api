@@ -19,5 +19,9 @@ func InitializeRouter() *mux.Router {
 	userHandler := controller.NewUserHandler(&stores.UserStoreSql{}, log.New(os.Stdout, "user-controller ", log.LstdFlags))
 	r.PathPrefix("/user").Handler(userHandler.NewRouter())
 
+	// user handler
+	tenantHandler := controller.NewTenantHandler(&stores.TenantStoreSql{}, log.New(os.Stdout, "user-controller ", log.LstdFlags))
+	r.PathPrefix("/tenant").Handler(tenantHandler.NewRouter())
+
 	return r
 }

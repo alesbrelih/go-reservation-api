@@ -14,59 +14,64 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type UserStore interface {
-	GetAll(ctx context.Context) (models.Users, error)
-	GetOne(ctx context.Context, id int64) (*models.User, error)
-	Create(*models.UserReqBody) (int64, error)
-	Update(*models.UserReqBody) error
+type TenantStore interface {
+	GetAll(ctx context.Context) (models.Tenants, error)
+	GetOne(ctx context.Context, id int64) (*models.Tenant, error)
+	Create(*models.Tenant) (int64, error)
+	Update(*models.Tenant) error
 	Delete(id int64) error
 }
 
-func (c *UserHandler) getAll(w http.ResponseWriter, r *http.Request) {
-	items, err := c.store.GetAll(r.Context())
+type TenantHandler struct {
+	log   *log.Logger
+	store TenantStore
+}
+
+func (h *TenantHandler) getAll(w http.ResponseWriter, r *http.Request) {
+	tenants, err := h.store.GetAll(r.Context())
 	if err != nil {
-		c.log.Printf("Error retrieving users: %v", err)
+		h.log.Printf("Error retrieving tenants: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	items.ToJSON(w)
+	tenants.ToJSON(w)
 }
 
-func (c *UserHandler) getOne(w http.ResponseWriter, r *http.Request) {
+func (h *TenantHandler) getOne(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 	id, _ := strconv.Atoi(params["id"]) // validated by regex already
 
-	item, err := c.store.GetOne(r.Context(), int64(id))
+	tenant, err := h.store.GetOne(r.Context(), int64(id))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
 		}
-		c.log.Printf("Error retrieving user with id: %v. Error: %v", id, err)
+		h.log.Printf("Error retrieving tenant with id: %v. Error: %v", id, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	item.ToJSON(w)
+	tenant.ToJSON(w)
 }
 
-func (c *UserHandler) create(w http.ResponseWriter, r *http.Request) {
+func (c *TenantHandler) create(w http.ResponseWriter, r *http.Request) {
 
-	user := r.Context().Value(&middleware.UserBodyContextKey{}).(*models.UserReqBody)
+	tenant := r.Context().Value(&middleware.TenantBodyContextKey{}).(*models.Tenant)
 
 	// validate
 	createValidate.SetTagName("create")
-	err := createValidate.Struct(user)
+	err := createValidate.Struct(tenant)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	id, err := c.store.Create(user)
+	id, err := c.store.Create(tenant)
 	if err != nil {
-		c.log.Printf("Error creating user. Error: %v", user)
+		c.log.Printf("Error creating tenant: %#v. Error: %v", tenant, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -76,32 +81,32 @@ func (c *UserHandler) create(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, id)
 }
 
-func (c *UserHandler) update(w http.ResponseWriter, r *http.Request) {
+func (c *TenantHandler) update(w http.ResponseWriter, r *http.Request) {
 
-	user := r.Context().Value(&middleware.UserBodyContextKey{}).(*models.UserReqBody)
+	tenant := r.Context().Value(&middleware.TenantBodyContextKey{}).(*models.Tenant)
 
 	// validate
 	// TODO: shouldn tgo through
 	updateValidate.SetTagName("update")
-	err := updateValidate.Struct(user)
+	err := updateValidate.Struct(tenant)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	err = c.store.Update(user)
+	err = c.store.Update(tenant)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
 		}
-		c.log.Printf("Error updating user: %#v. Error: %v", user, err)
+		c.log.Printf("Error updating tenant: %#v. Error: %v", tenant, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 }
 
-func (c *UserHandler) delete(w http.ResponseWriter, r *http.Request) {
+func (c *TenantHandler) delete(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 	id, _ := strconv.Atoi(params["id"]) // validated by regex already
@@ -112,43 +117,37 @@ func (c *UserHandler) delete(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
 		}
-		c.log.Printf("Error deleting user with id: %v. Error: %v", id, err)
+		c.log.Printf("Error deleting tenant with id: %v. Error: %v", id, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 }
 
-type UserHandler struct {
-	log   *log.Logger
-	store UserStore
-}
-
-func (h *UserHandler) NewRouter() *mux.Router {
+func (h *TenantHandler) NewRouter() *mux.Router {
 	r := mux.NewRouter()
 
-	middleware := middleware.NewUserMiddleware(log.New(os.Stdout, "user-middleware ", log.LstdFlags))
+	middleware := middleware.NewTenantMiddleware(log.New(os.Stdout, "tenant-middleware ", log.LstdFlags))
 
 	get := r.Methods(http.MethodGet).Subrouter()
-	get.HandleFunc("/user", h.getAll)
-	get.HandleFunc("/user/{id:[\\d]+}", h.getOne)
+	get.HandleFunc("/tenant", h.getAll)
+	get.HandleFunc("/tenant/{id:[\\d]+}", h.getOne)
 
 	post := r.Methods(http.MethodPost).Subrouter()
-	post.HandleFunc("/user", h.create)
+	post.HandleFunc("/tenant", h.create)
 	post.Use(middleware.GetBody)
 
 	put := r.Methods(http.MethodPut).Subrouter()
-	put.HandleFunc("/user", h.update)
+	put.HandleFunc("/tenant", h.update)
 	put.Use(middleware.GetBody)
 
 	delete := r.Methods(http.MethodDelete).Subrouter()
-	delete.HandleFunc("/user/{id:[\\d]+}", h.delete)
+	delete.HandleFunc("/tenant/{id:[\\d]+}", h.delete)
 
 	return r
 }
 
-func NewUserHandler(store UserStore, log *log.Logger) *UserHandler {
-	return &UserHandler{
+func NewTenantHandler(store TenantStore, log *log.Logger) *TenantHandler {
+	return &TenantHandler{
 		store: store,
 		log:   log,
 	}
