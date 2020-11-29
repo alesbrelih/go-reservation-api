@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS tenant_has_reservation_user

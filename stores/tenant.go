@@ -42,17 +42,54 @@ func (u *TenantStoreSql) GetOne(ctx context.Context, id int64) (*models.Tenant, 
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	item := &models.Tenant{}
+	stmt := `SELECT t.id, title, t.email, ru.id, ru.first_name, ru.last_name, ru.email
+			FROM tenant t
+				LEFT JOIN tenant_has_reservation_user thru ON (thru.tenant_id = t.id)
+				LEFT JOIN reservation_user ru ON (ru.id = thru.reservation_user_id)
+			WHERE t.id = $1`
 
-	stmt := "SELECT id, title, email FROM tenant WHERE id = $1"
-	res := myDb.QueryRowContext(ctx, stmt, id)
-	err := res.Scan(&item.Id, &item.Title, &item.Email)
-
+	rows, err := myDb.QueryContext(ctx, stmt, id)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	return item, nil
+	var tenant *models.Tenant
+
+	for rows.Next() {
+		var id int64
+		var title string
+		var email string
+		var userId int64
+		var userFirstName string
+		var userLastName string
+		var userEmail string
+
+		err := rows.Scan(&id, &title, &email, &userId, &userFirstName, &userLastName, &userEmail)
+		if err != nil {
+			return nil, err
+		}
+
+		if tenant == nil {
+			tenant = &models.Tenant{
+				Id:    id,
+				Title: title,
+				Email: email,
+				Users: []models.User{},
+			}
+		}
+		if userId != 0 {
+			tenant.Users = append(tenant.Users, models.User{
+				Id:        userId,
+				FirstName: userFirstName,
+				LastName:  userLastName,
+				Email:     userEmail,
+			})
+		}
+
+	}
+
+	return tenant, nil
 }
 
 func (u *TenantStoreSql) Create(item *models.Tenant) (int64, error) {
