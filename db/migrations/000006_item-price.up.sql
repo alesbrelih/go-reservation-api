@@ -1,0 +1,1 @@
+ALTER TABLE item ADD COLUMN price bigint NOT NULL DEFAULT 0;

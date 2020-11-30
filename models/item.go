@@ -11,6 +11,7 @@ type Item struct {
 	Title    *string    `json:"title" create:"required,gt=3" update:"required,gt=3"`
 	ShowFrom *time.Time `json:"showFrom"`
 	ShowTo   *time.Time `json:"showTo,omitempty"`
+	Price    int64      `json:"price" create:"number,omitempty" update:"number,omitempty"`
 }
 
 func (i *Item) FromJSON(r io.Reader) error {

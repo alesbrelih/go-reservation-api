@@ -15,7 +15,7 @@ func (u *ItemStoreSql) GetAll(ctx context.Context) (models.Items, error) {
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	query := "SELECT id, title, show_from, show_to FROM item"
+	query := "SELECT id, title, show_from, show_to, price FROM item"
 	rows, err := myDb.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func (u *ItemStoreSql) GetAll(ctx context.Context) (models.Items, error) {
 	for rows.Next() {
 		var item models.Item
 
-		err = rows.Scan(&item.Id, &item.Title, &item.ShowFrom, &item.ShowTo)
+		err = rows.Scan(&item.Id, &item.Title, &item.ShowFrom, &item.ShowTo, &item.Price)
 		if err != nil {
 			return nil, err
 		}
@@ -46,7 +46,7 @@ func (u *ItemStoreSql) GetOne(ctx context.Context, id int64) (*models.Item, erro
 
 	stmt := "SELECT * FROM item WHERE id = $1"
 	res := myDb.QueryRowContext(ctx, stmt, id)
-	err := res.Scan(&item.Id, &item.Title, &item.ShowFrom, &item.ShowTo)
+	err := res.Scan(&item.Id, &item.Title, &item.ShowFrom, &item.ShowTo, &item.Price)
 
 	if err != nil {
 		return nil, err
@@ -59,8 +59,8 @@ func (u *ItemStoreSql) Create(item *models.Item) (int64, error) {
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	stmt := "INSERT INTO item (title, show_from, show_to) VALUES ($1, $2, $3)"
-	res, err := myDb.Exec(stmt, item.Title, item.ShowFrom, item.ShowTo)
+	stmt := "INSERT INTO item (title, show_from, show_to, price) VALUES ($1, $2, $3, $4)"
+	res, err := myDb.Exec(stmt, item.Title, item.ShowFrom, item.ShowTo, item.Price)
 
 	if err != nil {
 		return 0, err
@@ -74,8 +74,8 @@ func (u *ItemStoreSql) Update(item *models.Item) error {
 	myDb := db.Connect()
 	defer myDb.Close()
 
-	stmt := "UPDATE item SET title=$1, show_from=$2, show_to=$3 WHERE id = $4"
-	res, err := myDb.Exec(stmt, item.Title, item.ShowFrom, item.ShowTo, item.Id)
+	stmt := "UPDATE item SET title=$2, show_from=$3, show_to=$4, price=$5 WHERE id = $1"
+	res, err := myDb.Exec(stmt, item.Id, item.Title, item.ShowFrom, item.ShowTo, item.Price)
 
 	if err != nil {
 		return err
@@ -87,7 +87,6 @@ func (u *ItemStoreSql) Update(item *models.Item) error {
 	}
 
 	return nil
-
 }
 
 func (u *ItemStoreSql) Delete(id int64) error {
