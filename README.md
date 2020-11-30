@@ -49,4 +49,4 @@ You need to set variables inside file though.
 
 
 # Todos
-[ ] https://medium.com/@raymondhartoyo/one-simple-way-to-handle-null-database-value-in-golang-86437ec75089
+- [ ] https://medium.com/@raymondhartoyo/one-simple-way-to-handle-null-database-value-in-golang-86437ec75089
