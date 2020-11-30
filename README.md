@@ -47,3 +47,6 @@ It needs enviroment variables set to work (migrations part).
 There is another script (./setenv.sh) which sets variables for current shell using source ./setenv.sh, if you dont want to set it to local machine
 You need to set variables inside file though.
 
+
+# Todos
+[ ] https://medium.com/@raymondhartoyo/one-simple-way-to-handle-null-database-value-in-golang-86437ec75089
