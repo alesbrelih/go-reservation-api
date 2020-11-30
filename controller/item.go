@@ -30,8 +30,8 @@ func init() {
 type ItemStore interface {
 	GetAll(ctx context.Context) (models.Items, error)
 	GetOne(ctx context.Context, id int64) (*models.Item, error)
-	Create(*models.Item) (int64, error)
-	Update(*models.Item) error
+	Create(ctx context.Context, item *models.Item) (int64, error)
+	Update(ctx context.Context, item *models.Item) error
 	Delete(id int64) error
 }
 
@@ -82,7 +82,7 @@ func (h *ItemHandler) create(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	id, err := h.store.Create(item)
+	id, err := h.store.Create(req.Context(), item)
 
 	if err != nil {
 		h.log.Printf("Error creating item: %#v. Error: %v", item, err)
@@ -106,7 +106,7 @@ func (h *ItemHandler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.store.Update(item)
+	err = h.store.Update(r.Context(), item)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Bad request", http.StatusBadRequest)
