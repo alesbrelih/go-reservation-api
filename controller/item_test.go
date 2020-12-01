@@ -30,13 +30,13 @@ func (h *MyFakeItemStore) GetOne(ctx context.Context, id int64) (*models.Item, e
 	return args.Get(0).(*models.Item), args.Error(1)
 }
 
-func (h *MyFakeItemStore) Create(item *models.Item) (int64, error) {
-	args := h.Called(item)
+func (h *MyFakeItemStore) Create(ctx context.Context, item *models.Item) (int64, error) {
+	args := h.Called(ctx, item)
 	return args.Get(0).(int64), args.Error(1)
 }
 
-func (h *MyFakeItemStore) Update(item *models.Item) error {
-	args := h.Called(item)
+func (h *MyFakeItemStore) Update(ctx context.Context, item *models.Item) error {
+	args := h.Called(ctx, item)
 	return args.Error(0)
 }
 
@@ -177,7 +177,7 @@ func TestItem_GetOne_RoutingOnMixedParameter(t *testing.T) {
 func TestItem_Create_Success(t *testing.T) {
 
 	itemStore := &MyFakeItemStore{}
-	itemStore.On("Create", mock.Anything).Return(int64(1), nil)
+	itemStore.On("Create", mock.Anything, mock.Anything).Return(int64(1), nil)
 	router := testRouter(itemStore, t)
 
 	jsonStr := []byte(`{"title":"MyTitle","ShowFrom":"2020-11-07T13:37:09.511Z","ShowTo":"2021-11-07T13:37:09.511Z"}`)
@@ -192,13 +192,13 @@ func TestItem_Create_Success(t *testing.T) {
 
 	json := &models.Item{}
 	json.FromJSON(bytes.NewBuffer(jsonStr))
-	itemStore.AssertCalled(t, "Create", json)
+	itemStore.AssertCalled(t, "Create", mock.Anything, json)
 }
 
 func TestItem_Create_BadRequest_TitleLength(t *testing.T) {
 
 	itemStore := &MyFakeItemStore{}
-	itemStore.On("Create", mock.Anything).Return(int64(1), nil)
+	itemStore.On("Create", mock.Anything, mock.Anything).Return(int64(1), nil)
 	router := testRouter(itemStore, t)
 
 	jsonStr := []byte(`{"title":"My","ShowFrom":"2020-11-07T13:37:09.511Z","ShowTo":"2021-11-07T13:37:09.511Z"}`)
@@ -220,7 +220,7 @@ func TestItem_Create_BadRequest_TitleLength(t *testing.T) {
 func TestItem_Create_BadRequest_TitleMissing(t *testing.T) {
 
 	itemStore := &MyFakeItemStore{}
-	itemStore.On("Create", mock.Anything).Return(int64(1), nil)
+	itemStore.On("Create", mock.Anything, mock.Anything).Return(int64(1), nil)
 	router := testRouter(itemStore, t)
 
 	jsonStr := []byte(`{"ShowFrom":"2020-11-07T13:37:09.511Z","ShowTo":"2021-11-07T13:37:09.511Z"}`)
@@ -242,7 +242,7 @@ func TestItem_Create_BadRequest_TitleMissing(t *testing.T) {
 func TestItem_Create_DbError(t *testing.T) {
 
 	itemStore := &MyFakeItemStore{}
-	itemStore.On("Create", mock.Anything).Return(int64(0), errors.New("Some error"))
+	itemStore.On("Create", mock.Anything, mock.Anything).Return(int64(0), errors.New("Some error"))
 	router := testRouter(itemStore, t)
 
 	jsonStr := []byte(`{"title":"MyTitle","ShowFrom":"2020-11-07T13:37:09.511Z","ShowTo":"2021-11-07T13:37:09.511Z"}`)
@@ -263,7 +263,7 @@ func TestItem_Create_DbError(t *testing.T) {
 func TestItem_Update_Success(t *testing.T) {
 
 	itemStore := &MyFakeItemStore{}
-	itemStore.On("Update", mock.Anything).Return(nil)
+	itemStore.On("Update", mock.Anything, mock.Anything).Return(nil)
 	router := testRouter(itemStore, t)
 
 	jsonStr := []byte(`{"id":1,"title":"MyTitle","ShowFrom":"2020-11-07T13:37:09.511Z","ShowTo":"2021-11-07T13:37:09.511Z"}`)
@@ -282,7 +282,7 @@ func TestItem_Update_Success(t *testing.T) {
 
 	json := &models.Item{}
 	json.FromJSON(bytes.NewBuffer(jsonStr))
-	itemStore.AssertCalled(t, "Update", json)
+	itemStore.AssertCalled(t, "Update", mock.Anything, json)
 }
 
 func TestItem_Update_BadRequest_TitleLength(t *testing.T) {
@@ -351,7 +351,7 @@ func TestItem_Update_BadRequest_IdMissing(t *testing.T) {
 func TestItem_Update_DbError(t *testing.T) {
 
 	itemStore := &MyFakeItemStore{}
-	itemStore.On("Update", mock.Anything).Return(errors.New("Some error"))
+	itemStore.On("Update", mock.Anything, mock.Anything).Return(errors.New("Some error"))
 	router := testRouter(itemStore, t)
 
 	jsonStr := []byte(`{"id":5,"title":"MyTitle","ShowFrom":"2020-11-07T13:37:09.511Z","ShowTo":"2021-11-07T13:37:09.511Z"}`)
