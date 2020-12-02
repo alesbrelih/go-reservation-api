@@ -2,7 +2,6 @@ package controller
 
 import (
 	"database/sql"
-	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 	"github.com/alesbrelih/go-reservation-api/services"
 	"github.com/alesbrelih/go-reservation-api/stores"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 func NewAuthHandler(authStore stores.AuthStore, authService services.AuthService, log *log.Logger) AuthHandler {
@@ -46,7 +46,7 @@ func (a *authHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	id, err := a.authStore.Authenticate(r.Context(), login.Username, login.Password)
 	if err != nil {
-		if errors.Unwrap(errors.Unwrap(err)) == sql.ErrNoRows {
+		if errors.Cause(err) == sql.ErrNoRows {
 			http.Error(w, "Invalid authentication", http.StatusBadRequest)
 			return
 		}
@@ -78,7 +78,7 @@ func (a *authHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	claims, err := a.authService.GetClaims(refreshToken.Refresh)
 	if err != nil {
-		if err == services.InvalidTokenError {
+		if errors.Cause(err) == services.InvalidTokenError {
 			a.log.Printf("Invalid token error: %v", err)
 			http.Error(w, "Internal server error", http.StatusUnauthorized)
 			return
