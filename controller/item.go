@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/alesbrelih/go-reservation-api/middleware"
 	"github.com/alesbrelih/go-reservation-api/models"
+	"github.com/alesbrelih/go-reservation-api/stores"
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -27,20 +27,28 @@ func init() {
 	updateValidate.SetTagName("update")
 }
 
-type ItemStore interface {
-	GetAll(ctx context.Context) (models.Items, error)
-	GetOne(ctx context.Context, id int64) (*models.Item, error)
-	Create(ctx context.Context, item *models.Item) (int64, error)
-	Update(ctx context.Context, item *models.Item) error
-	Delete(id int64) error
+func NewItemHandler(store stores.ItemStore, log *log.Logger) ItemHandler {
+	return &itemHandler{
+		store: store,
+		log:   log,
+	}
 }
 
-type ItemHandler struct {
+type ItemHandler interface {
+	GetAll(w http.ResponseWriter, r *http.Request)
+	GetOne(w http.ResponseWriter, r *http.Request)
+	Create(w http.ResponseWriter, req *http.Request)
+	Update(w http.ResponseWriter, r *http.Request)
+	Delete(w http.ResponseWriter, r *http.Request)
+	NewItemRouter() *mux.Router
+}
+
+type itemHandler struct {
 	log   *log.Logger
-	store ItemStore
+	store stores.ItemStore
 }
 
-func (h *ItemHandler) getAll(w http.ResponseWriter, r *http.Request) {
+func (h *itemHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	items, err := h.store.GetAll(r.Context())
 	if err != nil {
 		h.log.Printf("Error retrieving items: %v", err)
@@ -49,10 +57,9 @@ func (h *ItemHandler) getAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items.ToJSON(w)
-
 }
 
-func (h *ItemHandler) getOne(w http.ResponseWriter, r *http.Request) {
+func (h *itemHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, _ := strconv.Atoi(params["id"]) // validated by regex already
 
@@ -70,7 +77,7 @@ func (h *ItemHandler) getOne(w http.ResponseWriter, r *http.Request) {
 	item.ToJSON(w)
 }
 
-func (h *ItemHandler) create(w http.ResponseWriter, req *http.Request) {
+func (h *itemHandler) Create(w http.ResponseWriter, req *http.Request) {
 
 	// .( ) <- type assertion
 	item := req.Context().Value(&middleware.ItemBodyKeyType{}).(*models.Item)
@@ -95,7 +102,7 @@ func (h *ItemHandler) create(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(w, id)
 }
 
-func (h *ItemHandler) update(w http.ResponseWriter, r *http.Request) {
+func (h *itemHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	item := r.Context().Value(&middleware.ItemBodyKeyType{}).(*models.Item)
 
@@ -119,7 +126,7 @@ func (h *ItemHandler) update(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *ItemHandler) delete(w http.ResponseWriter, r *http.Request) {
+func (h *itemHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
 	id, _ := strconv.Atoi(params["id"])
@@ -136,32 +143,25 @@ func (h *ItemHandler) delete(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *ItemHandler) NewItemRouter() *mux.Router {
+func (h *itemHandler) NewItemRouter() *mux.Router {
 	r := mux.NewRouter()
 
 	middleware := middleware.NewItemMiddleware(log.New(os.Stdout, "item-middleware ", log.LstdFlags))
 
 	getSubrouter := r.Methods(http.MethodGet).Subrouter()
-	getSubrouter.HandleFunc("/item", h.getAll)
-	getSubrouter.HandleFunc("/item/{id:[\\d]+}", h.getOne)
+	getSubrouter.HandleFunc("/item", h.GetAll)
+	getSubrouter.HandleFunc("/item/{id:[\\d]+}", h.GetOne)
 
 	postSubrouter := r.Methods(http.MethodPost).Subrouter()
-	postSubrouter.HandleFunc("/item", h.create)
+	postSubrouter.HandleFunc("/item", h.Create)
 	postSubrouter.Use(middleware.GetBody)
 
 	putSubrouter := r.Methods(http.MethodPut).Subrouter()
-	putSubrouter.HandleFunc("/item", h.update)
+	putSubrouter.HandleFunc("/item", h.Update)
 	putSubrouter.Use(middleware.GetBody)
 
 	deleteSubgrouter := r.Methods(http.MethodDelete).Subrouter()
-	deleteSubgrouter.HandleFunc("/item/{id:[\\d]+}", h.delete)
+	deleteSubgrouter.HandleFunc("/item/{id:[\\d]+}", h.Delete)
 
 	return r
-}
-
-func NewItemHandler(store ItemStore, log *log.Logger) *ItemHandler {
-	return &ItemHandler{
-		store: store,
-		log:   log,
-	}
 }

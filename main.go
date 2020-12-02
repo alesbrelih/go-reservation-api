@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/alesbrelih/go-reservation-api/db"
 	"github.com/alesbrelih/go-reservation-api/pkg/myutil"
 	"github.com/alesbrelih/go-reservation-api/router"
 )
@@ -20,7 +21,14 @@ func main() {
 
 	port := myutil.GetEnvOrDefault("APPLICATION_PORT", "8080")
 
-	mux := router.InitializeRouter()
+	postgresDsn, found := os.LookupEnv("POSTGRES_URL")
+	if !found {
+		panic(myutil.MissingEnvVariableMsg("POSTGRES_URL"))
+	}
+
+	dbFactory := db.NewDbFactory(postgresDsn)
+
+	mux := router.InitializeRouter(dbFactory)
 
 	l := log.New(os.Stdout, "reservations", log.LstdFlags)
 

@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -11,23 +10,32 @@ import (
 
 	"github.com/alesbrelih/go-reservation-api/middleware"
 	"github.com/alesbrelih/go-reservation-api/models"
+	"github.com/alesbrelih/go-reservation-api/stores"
 	"github.com/gorilla/mux"
 )
 
-type TenantStore interface {
-	GetAll(ctx context.Context) (models.Tenants, error)
-	GetOne(ctx context.Context, id int64) (*models.Tenant, error)
-	Create(*models.Tenant) (int64, error)
-	Update(*models.Tenant) error
-	Delete(id int64) error
+func NewTenantHandler(store stores.TenantStore, log *log.Logger) TenantHandler {
+	return &tenantHandler{
+		store: store,
+		log:   log,
+	}
 }
 
-type TenantHandler struct {
+type TenantHandler interface {
+	GetAll(w http.ResponseWriter, r *http.Request)
+	GetOne(w http.ResponseWriter, r *http.Request)
+	Create(w http.ResponseWriter, r *http.Request)
+	Update(w http.ResponseWriter, r *http.Request)
+	Delete(w http.ResponseWriter, r *http.Request)
+	NewRouter() *mux.Router
+}
+
+type tenantHandler struct {
 	log   *log.Logger
-	store TenantStore
+	store stores.TenantStore
 }
 
-func (h *TenantHandler) getAll(w http.ResponseWriter, r *http.Request) {
+func (h *tenantHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	tenants, err := h.store.GetAll(r.Context())
 	if err != nil {
 		h.log.Printf("Error retrieving tenants: %v", err)
@@ -38,7 +46,7 @@ func (h *TenantHandler) getAll(w http.ResponseWriter, r *http.Request) {
 	tenants.ToJSON(w)
 }
 
-func (h *TenantHandler) getOne(w http.ResponseWriter, r *http.Request) {
+func (h *tenantHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 	id, _ := strconv.Atoi(params["id"]) // validated by regex already
@@ -57,7 +65,7 @@ func (h *TenantHandler) getOne(w http.ResponseWriter, r *http.Request) {
 	tenant.ToJSON(w)
 }
 
-func (c *TenantHandler) create(w http.ResponseWriter, r *http.Request) {
+func (c *tenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	tenant := r.Context().Value(&middleware.TenantBodyContextKey{}).(*models.Tenant)
 
@@ -81,7 +89,7 @@ func (c *TenantHandler) create(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, id)
 }
 
-func (c *TenantHandler) update(w http.ResponseWriter, r *http.Request) {
+func (c *tenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	tenant := r.Context().Value(&middleware.TenantBodyContextKey{}).(*models.Tenant)
 
@@ -106,7 +114,7 @@ func (c *TenantHandler) update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *TenantHandler) delete(w http.ResponseWriter, r *http.Request) {
+func (c *tenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 	id, _ := strconv.Atoi(params["id"]) // validated by regex already
@@ -123,32 +131,25 @@ func (c *TenantHandler) delete(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *TenantHandler) NewRouter() *mux.Router {
+func (c *tenantHandler) NewRouter() *mux.Router {
 	r := mux.NewRouter()
 
 	middleware := middleware.NewTenantMiddleware(log.New(os.Stdout, "tenant-middleware ", log.LstdFlags))
 
 	get := r.Methods(http.MethodGet).Subrouter()
-	get.HandleFunc("/tenant", h.getAll)
-	get.HandleFunc("/tenant/{id:[\\d]+}", h.getOne)
+	get.HandleFunc("/tenant", c.GetAll)
+	get.HandleFunc("/tenant/{id:[\\d]+}", c.GetOne)
 
 	post := r.Methods(http.MethodPost).Subrouter()
-	post.HandleFunc("/tenant", h.create)
+	post.HandleFunc("/tenant", c.Create)
 	post.Use(middleware.GetBody)
 
 	put := r.Methods(http.MethodPut).Subrouter()
-	put.HandleFunc("/tenant", h.update)
+	put.HandleFunc("/tenant", c.Update)
 	put.Use(middleware.GetBody)
 
 	delete := r.Methods(http.MethodDelete).Subrouter()
-	delete.HandleFunc("/tenant/{id:[\\d]+}", h.delete)
+	delete.HandleFunc("/tenant/{id:[\\d]+}", c.Delete)
 
 	return r
-}
-
-func NewTenantHandler(store TenantStore, log *log.Logger) *TenantHandler {
-	return &TenantHandler{
-		store: store,
-		log:   log,
-	}
 }

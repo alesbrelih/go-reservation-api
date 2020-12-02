@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -11,18 +10,32 @@ import (
 
 	"github.com/alesbrelih/go-reservation-api/middleware"
 	"github.com/alesbrelih/go-reservation-api/models"
+	"github.com/alesbrelih/go-reservation-api/stores"
 	"github.com/gorilla/mux"
 )
 
-type UserStore interface {
-	GetAll(ctx context.Context) (models.Users, error)
-	GetOne(ctx context.Context, id int64) (*models.User, error)
-	Create(*models.UserReqBody) (int64, error)
-	Update(*models.UserReqBody) error
-	Delete(id int64) error
+func NewUserHandler(store stores.UserStore, log *log.Logger) UserHandler {
+	return &userHandler{
+		store: store,
+		log:   log,
+	}
 }
 
-func (c *UserHandler) getAll(w http.ResponseWriter, r *http.Request) {
+type UserHandler interface {
+	GetAll(w http.ResponseWriter, r *http.Request)
+	GetOne(w http.ResponseWriter, r *http.Request)
+	Create(w http.ResponseWriter, r *http.Request)
+	Update(w http.ResponseWriter, r *http.Request)
+	Delete(w http.ResponseWriter, r *http.Request)
+	NewRouter() *mux.Router
+}
+
+type userHandler struct {
+	log   *log.Logger
+	store stores.UserStore
+}
+
+func (c *userHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	items, err := c.store.GetAll(r.Context())
 	if err != nil {
 		c.log.Printf("Error retrieving users: %v", err)
@@ -33,7 +46,7 @@ func (c *UserHandler) getAll(w http.ResponseWriter, r *http.Request) {
 	items.ToJSON(w)
 }
 
-func (c *UserHandler) getOne(w http.ResponseWriter, r *http.Request) {
+func (c *userHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 	id, _ := strconv.Atoi(params["id"]) // validated by regex already
@@ -52,7 +65,7 @@ func (c *UserHandler) getOne(w http.ResponseWriter, r *http.Request) {
 	item.ToJSON(w)
 }
 
-func (c *UserHandler) create(w http.ResponseWriter, r *http.Request) {
+func (c *userHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	user := r.Context().Value(&middleware.UserBodyContextKey{}).(*models.UserReqBody)
 
@@ -76,7 +89,7 @@ func (c *UserHandler) create(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, id)
 }
 
-func (c *UserHandler) update(w http.ResponseWriter, r *http.Request) {
+func (c *userHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	user := r.Context().Value(&middleware.UserBodyContextKey{}).(*models.UserReqBody)
 
@@ -101,7 +114,7 @@ func (c *UserHandler) update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *UserHandler) delete(w http.ResponseWriter, r *http.Request) {
+func (c *userHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 	id, _ := strconv.Atoi(params["id"]) // validated by regex already
@@ -119,37 +132,25 @@ func (c *UserHandler) delete(w http.ResponseWriter, r *http.Request) {
 
 }
 
-type UserHandler struct {
-	log   *log.Logger
-	store UserStore
-}
-
-func (h *UserHandler) NewRouter() *mux.Router {
+func (h *userHandler) NewRouter() *mux.Router {
 	r := mux.NewRouter()
 
 	middleware := middleware.NewUserMiddleware(log.New(os.Stdout, "user-middleware ", log.LstdFlags))
 
 	get := r.Methods(http.MethodGet).Subrouter()
-	get.HandleFunc("/user", h.getAll)
-	get.HandleFunc("/user/{id:[\\d]+}", h.getOne)
+	get.HandleFunc("/user", h.GetAll)
+	get.HandleFunc("/user/{id:[\\d]+}", h.GetOne)
 
 	post := r.Methods(http.MethodPost).Subrouter()
-	post.HandleFunc("/user", h.create)
+	post.HandleFunc("/user", h.Create)
 	post.Use(middleware.GetBody)
 
 	put := r.Methods(http.MethodPut).Subrouter()
-	put.HandleFunc("/user", h.update)
+	put.HandleFunc("/user", h.Update)
 	put.Use(middleware.GetBody)
 
 	delete := r.Methods(http.MethodDelete).Subrouter()
-	delete.HandleFunc("/user/{id:[\\d]+}", h.delete)
+	delete.HandleFunc("/user/{id:[\\d]+}", h.Delete)
 
 	return r
-}
-
-func NewUserHandler(store UserStore, log *log.Logger) *UserHandler {
-	return &UserHandler{
-		store: store,
-		log:   log,
-	}
 }

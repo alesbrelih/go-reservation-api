@@ -8,11 +8,25 @@ import (
 	"github.com/alesbrelih/go-reservation-api/models"
 )
 
-type TenantStoreSql struct{}
+func NewTenantStore(db db.DbFactory) TenantStore {
+	return &tenantStoreSql{db: db}
+}
 
-func (u *TenantStoreSql) GetAll(ctx context.Context) (models.Tenants, error) {
+type TenantStore interface {
+	GetAll(ctx context.Context) (models.Tenants, error)
+	GetOne(ctx context.Context, id int64) (*models.Tenant, error)
+	Create(*models.Tenant) (int64, error)
+	Update(*models.Tenant) error
+	Delete(id int64) error
+}
 
-	myDb := db.Connect()
+type tenantStoreSql struct {
+	db db.DbFactory
+}
+
+func (t *tenantStoreSql) GetAll(ctx context.Context) (models.Tenants, error) {
+
+	myDb := t.db.Connect()
 	defer myDb.Close()
 
 	query := "SELECT id, title, email FROM tenant"
@@ -37,9 +51,9 @@ func (u *TenantStoreSql) GetAll(ctx context.Context) (models.Tenants, error) {
 	return items, nil
 }
 
-func (u *TenantStoreSql) GetOne(ctx context.Context, id int64) (*models.Tenant, error) {
+func (t *tenantStoreSql) GetOne(ctx context.Context, id int64) (*models.Tenant, error) {
 
-	myDb := db.Connect()
+	myDb := t.db.Connect()
 	defer myDb.Close()
 
 	stmt := `SELECT t.id, title, t.email, ru.id, ru.first_name, ru.last_name, ru.email
@@ -92,8 +106,8 @@ func (u *TenantStoreSql) GetOne(ctx context.Context, id int64) (*models.Tenant, 
 	return tenant, nil
 }
 
-func (u *TenantStoreSql) Create(item *models.Tenant) (int64, error) {
-	myDb := db.Connect()
+func (t *tenantStoreSql) Create(item *models.Tenant) (int64, error) {
+	myDb := t.db.Connect()
 	defer myDb.Close()
 
 	stmt := "INSERT INTO tenant (title, email) VALUES ($1, $2, $3)"
@@ -107,8 +121,8 @@ func (u *TenantStoreSql) Create(item *models.Tenant) (int64, error) {
 	return id, nil
 }
 
-func (u *TenantStoreSql) Update(item *models.Tenant) error {
-	myDb := db.Connect()
+func (t *tenantStoreSql) Update(item *models.Tenant) error {
+	myDb := t.db.Connect()
 	defer myDb.Close()
 
 	stmt := "UPDATE tenant SET title=$2, email=$3, show_to=$3 WHERE id = $1"
@@ -126,8 +140,8 @@ func (u *TenantStoreSql) Update(item *models.Tenant) error {
 	return nil
 }
 
-func (u *TenantStoreSql) Delete(id int64) error {
-	myDb := db.Connect()
+func (t *tenantStoreSql) Delete(id int64) error {
+	myDb := t.db.Connect()
 	defer myDb.Close()
 
 	stmt := "DELETE FROM tenant WHERE id = $1"

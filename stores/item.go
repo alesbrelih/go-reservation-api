@@ -10,13 +10,27 @@ import (
 	"github.com/lib/pq"
 )
 
-type ItemStoreSql struct {
-	db *sql.DB
+func NewItemStoreSql(db db.DbFactory) ItemStore {
+	return &itemStoreSql{
+		db: db,
+	}
 }
 
-func (u *ItemStoreSql) GetAll(ctx context.Context) (models.Items, error) {
+type ItemStore interface {
+	GetAll(ctx context.Context) (models.Items, error)
+	GetOne(ctx context.Context, id int64) (*models.Item, error)
+	Create(ctx context.Context, item *models.Item) (int64, error)
+	Update(ctx context.Context, item *models.Item) error
+	Delete(id int64) error
+}
 
-	myDb := db.Connect()
+type itemStoreSql struct {
+	db db.DbFactory
+}
+
+func (u *itemStoreSql) GetAll(ctx context.Context) (models.Items, error) {
+
+	myDb := u.db.Connect()
 	defer myDb.Close()
 
 	query := "SELECT id, title, show_from, show_to, price FROM item"
@@ -41,9 +55,9 @@ func (u *ItemStoreSql) GetAll(ctx context.Context) (models.Items, error) {
 	return items, nil
 }
 
-func (u *ItemStoreSql) GetOne(ctx context.Context, id int64) (*models.Item, error) {
+func (u *itemStoreSql) GetOne(ctx context.Context, id int64) (*models.Item, error) {
 
-	myDb := db.Connect()
+	myDb := u.db.Connect()
 	defer myDb.Close()
 
 	q := `SELECT i.id, i.title, i.show_from, i.show_to, i.price,
@@ -102,8 +116,8 @@ func (u *ItemStoreSql) GetOne(ctx context.Context, id int64) (*models.Item, erro
 	return item, nil
 }
 
-func (u *ItemStoreSql) Create(ctx context.Context, item *models.Item) (int64, error) {
-	myDb := db.Connect()
+func (u *itemStoreSql) Create(ctx context.Context, item *models.Item) (int64, error) {
+	myDb := u.db.Connect()
 	defer myDb.Close()
 
 	tx, err := myDb.BeginTx(ctx, nil)
@@ -146,8 +160,8 @@ func (u *ItemStoreSql) Create(ctx context.Context, item *models.Item) (int64, er
 	return id, nil
 }
 
-func (u *ItemStoreSql) Update(ctx context.Context, item *models.Item) error {
-	myDb := db.Connect()
+func (u *itemStoreSql) Update(ctx context.Context, item *models.Item) error {
+	myDb := u.db.Connect()
 	defer myDb.Close()
 
 	tx, err := myDb.BeginTx(ctx, nil)
@@ -205,8 +219,8 @@ func (u *ItemStoreSql) Update(ctx context.Context, item *models.Item) error {
 	return nil
 }
 
-func (u *ItemStoreSql) Delete(id int64) error {
-	myDb := db.Connect()
+func (u *itemStoreSql) Delete(id int64) error {
+	myDb := u.db.Connect()
 	defer myDb.Close()
 
 	stmt := "DELETE FROM item WHERE id = $1"

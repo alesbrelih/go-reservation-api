@@ -10,13 +10,27 @@ import (
 	"github.com/alesbrelih/go-reservation-api/pkg/myutil"
 )
 
+func NewUserStore(db db.DbFactory) UserStore {
+	return &userStoreSql{db: db}
+}
+
 var PasswordMissmatch = errors.New("Passwords missmatch")
 
-type UserStoreSql struct{}
+type UserStore interface {
+	GetAll(ctx context.Context) (models.Users, error)
+	GetOne(ctx context.Context, id int64) (*models.User, error)
+	Create(*models.UserReqBody) (int64, error)
+	Update(*models.UserReqBody) error
+	Delete(id int64) error
+}
 
-func (u *UserStoreSql) GetAll(ctx context.Context) (models.Users, error) {
+type userStoreSql struct {
+	db db.DbFactory
+}
 
-	myDb := db.Connect()
+func (u *userStoreSql) GetAll(ctx context.Context) (models.Users, error) {
+
+	myDb := u.db.Connect()
 	defer myDb.Close()
 
 	query := "SELECT id, first_name, last_name, username, email FROM reservation_user"
@@ -43,8 +57,8 @@ func (u *UserStoreSql) GetAll(ctx context.Context) (models.Users, error) {
 
 }
 
-func (u *UserStoreSql) GetOne(ctx context.Context, id int64) (*models.User, error) {
-	myDb := db.Connect()
+func (u *userStoreSql) GetOne(ctx context.Context, id int64) (*models.User, error) {
+	myDb := u.db.Connect()
 	defer myDb.Close()
 
 	user := &models.User{}
@@ -60,8 +74,8 @@ func (u *UserStoreSql) GetOne(ctx context.Context, id int64) (*models.User, erro
 	return user, nil
 }
 
-func (u *UserStoreSql) Create(user *models.UserReqBody) (int64, error) {
-	myDb := db.Connect()
+func (u *userStoreSql) Create(user *models.UserReqBody) (int64, error) {
+	myDb := u.db.Connect()
 	defer myDb.Close()
 
 	stmt := `INSERT INTO reservation_user (first_name, last_name, username, email, pass) 
@@ -76,19 +90,20 @@ func (u *UserStoreSql) Create(user *models.UserReqBody) (int64, error) {
 		return 0, err
 	}
 
+	// FIX ME: (postgre) returns 0 alwys, need to use queryrow and scan
 	id, _ := res.LastInsertId()
 	return id, nil
 }
 
-func (u *UserStoreSql) Update(user *models.UserReqBody) error {
-	myDb := db.Connect()
+func (u *userStoreSql) Update(user *models.UserReqBody) error {
+	myDb := u.db.Connect()
 	defer myDb.Close()
 
 	stmt := `UPDATE reservation_user 
 			SET first_name = $2,
 			last_name = $3,
 			email = $4,
-			pass = COALESCE($5, passw) WHERE id = $1`
+			pass = COALESCE($5, pass) WHERE id = $1`
 
 	password, err := u.setPassword(user)
 	if err != nil {
@@ -108,7 +123,7 @@ func (u *UserStoreSql) Update(user *models.UserReqBody) error {
 	return nil
 }
 
-func (u *UserStoreSql) setPassword(user *models.UserReqBody) (*string, error) {
+func (u *userStoreSql) setPassword(user *models.UserReqBody) (*string, error) {
 	if myutil.Empty(user.Password) && myutil.Empty(user.Confirm) {
 		return nil, nil
 	}
@@ -123,8 +138,8 @@ func (u *UserStoreSql) setPassword(user *models.UserReqBody) (*string, error) {
 	return &hash, nil
 }
 
-func (u *UserStoreSql) Delete(id int64) error {
-	myDb := db.Connect()
+func (u *userStoreSql) Delete(id int64) error {
+	myDb := u.db.Connect()
 	defer myDb.Close()
 
 	stmt := "DELETE FROM reservation_user WHERE id = $1"
