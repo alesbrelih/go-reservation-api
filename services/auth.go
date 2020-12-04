@@ -45,7 +45,7 @@ func NewAuthHandler() AuthService {
 type AuthService interface {
 	GenerateJwtPair(id string) (*models.TokenPair, error)
 	RefreshToken(refreshToken string) (*models.TokenPair, error)
-	GetClaims(refreshToken string) (*jwt.StandardClaims, error)
+	GetClaims(token string) (*jwt.StandardClaims, error)
 }
 
 type authService struct {
