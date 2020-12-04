@@ -12,6 +12,7 @@ import (
 	"code.soquee.net/testlog"
 	"github.com/alesbrelih/go-reservation-api/controller"
 	"github.com/alesbrelih/go-reservation-api/models"
+	"github.com/alesbrelih/go-reservation-api/stores"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/mock"
 )
@@ -45,7 +46,7 @@ func (h *MyFakeItemStore) Delete(id int64) error {
 	return args.Error(0)
 }
 
-func testRouter(store controller.ItemStore, t *testing.T) *mux.Router {
+func testRouter(store stores.ItemStore, t *testing.T) *mux.Router {
 	r := mux.NewRouter()
 
 	itemHandler := controller.NewItemHandler(store, testlog.New(t))

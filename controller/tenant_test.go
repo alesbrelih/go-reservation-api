@@ -3,6 +3,7 @@ package controller_test
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"code.soquee.net/testlog"
 	"github.com/alesbrelih/go-reservation-api/controller"
 	"github.com/alesbrelih/go-reservation-api/models"
+	"github.com/alesbrelih/go-reservation-api/stores"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/mock"
 )
@@ -26,6 +28,9 @@ func (h *MyFakeTenantStore) GetAll(ctx context.Context) (models.Tenants, error) 
 
 func (h *MyFakeTenantStore) GetOne(ctx context.Context, id int64) (*models.Tenant, error) {
 	args := h.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(*models.Tenant), args.Error(1)
 }
 
@@ -44,7 +49,7 @@ func (h *MyFakeTenantStore) Delete(id int64) error {
 	return args.Error(0)
 }
 
-func tenantTestRouter(store controller.TenantStore, t *testing.T) *mux.Router {
+func tenantTestRouter(store stores.TenantStore, t *testing.T) *mux.Router {
 	r := mux.NewRouter()
 
 	tenantHandler := controller.NewTenantHandler(store, testlog.New(t))
@@ -138,6 +143,43 @@ func TestTenant_GetOne_GetResult(t *testing.T) {
 	}
 
 	tenantStore.AssertExpectations(t)
+}
+
+func TestTenant_GetOne_ErrorNoRows(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/tenant/1", nil)
+	tenantStore := &MyFakeTenantStore{}
+	tenantStore.On("GetOne", mock.Anything, int64(1)).Return(nil, sql.ErrNoRows)
+	router := tenantTestRouter(tenantStore, t)
+
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Fatalf("Error code should be 400, but got %v", res.Result().StatusCode)
+	}
+
+	if res.Body.String() != "Bad request\n" {
+		t.Fatalf("Body should be Bad request, but got %v", res.Body.String())
+	}
+}
+
+func TestTenant_GetOne_SomeError(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/tenant/1", nil)
+	tenantStore := &MyFakeTenantStore{}
+	tenantStore.On("GetOne", mock.Anything, int64(1)).Return(nil, errors.New("Some error"))
+	router := tenantTestRouter(tenantStore, t)
+
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 500 {
+		t.Fatalf("Error code should be 500, but got %v", res.Result().StatusCode)
+	}
+	if res.Body.String() != "Internal server error\n" {
+		t.Fatalf("Body should be Internal server error, but got %v", res.Body.String())
+	}
 }
 
 func TestTenant_GetOne_RoutingOnStringParameter(t *testing.T) {
@@ -363,6 +405,27 @@ func TestTenant_Update_DbError(t *testing.T) {
 	}
 }
 
+func TestTenant_Update_NoRowsError(t *testing.T) {
+
+	tenantStore := &MyFakeTenantStore{}
+	tenantStore.On("Update", mock.Anything).Return(sql.ErrNoRows)
+	router := tenantTestRouter(tenantStore, t)
+
+	jsonStr := []byte(`{"id":1,"title":"my-supertitle","email":"mytenant@tenant.com"}`)
+	req, _ := http.NewRequest("PUT", "/tenant", bytes.NewBuffer(jsonStr))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 500 but got %v", res.Result().StatusCode)
+	}
+
+	if res.Body.String() != "Bad request\n" {
+		t.Errorf("Response body should be %#v but got %#v", "Internal server error", res.Body.String())
+	}
+}
+
 func TestTenant_Delete_GetResult(t *testing.T) {
 
 	req, _ := http.NewRequest("DELETE", "/tenant/1", nil)
@@ -432,5 +495,25 @@ func TestTenant_Delete_DbError(t *testing.T) {
 
 	if res.Body.String() != "Internal server error\n" {
 		t.Errorf("Response body should be %#v but got %#v", "Internal server error", res.Body.String())
+	}
+}
+
+func TestTenant_Delete_SqlNoRows(t *testing.T) {
+
+	tenantStore := &MyFakeTenantStore{}
+	tenantStore.On("Delete", int64(1)).Return(sql.ErrNoRows)
+	router := tenantTestRouter(tenantStore, t)
+
+	req, _ := http.NewRequest("DELETE", "/tenant/1", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 400 {
+		t.Errorf("Get all status code should be 400 but got %v", res.Result().StatusCode)
+	}
+
+	if res.Body.String() != "Bad request\n" {
+		t.Errorf("Response body should be %#v but got %#v", "Bad request", res.Body.String())
 	}
 }

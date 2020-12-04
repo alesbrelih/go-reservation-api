@@ -1,8 +1,6 @@
 package services
 
 import (
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/alesbrelih/go-reservation-api/models"
@@ -12,33 +10,11 @@ import (
 
 var InvalidTokenError = errors.New("Invalid jwt token")
 
-func NewAuthHandler() AuthService {
-	secret, found := os.LookupEnv("JWT_SECRET")
-	if !found {
-		panic("JWT_SECRET not found")
-	}
-
-	accessExp, found := os.LookupEnv("JWT_ACCESS_EXP_MINUTES")
-	if !found {
-		panic("JWT_ACCESS_EXP_MINUTES not found")
-	}
-	accessDuration, err := strconv.Atoi(accessExp)
-	if err != nil {
-		panic("JWT_ACCESS_EXP_MINUTES not numeric")
-	}
-
-	refreshExp, found := os.LookupEnv("JWT_REFRESH_EXP_HOURS")
-	if !found {
-		panic("JWT_REFRESH_EXP_HOURS not found")
-	}
-	refreshDuration, err := strconv.Atoi(refreshExp)
-	if err != nil {
-		panic("JWT_REFRESH_EXP_HOURS not numeric")
-	}
+func NewAuthHandler(secret string, accessExp, refreshExp time.Duration) AuthService {
 	return &authService{
 		secret:     []byte(secret),
-		accessExp:  time.Duration(accessDuration) * time.Minute,
-		refreshExp: time.Duration(refreshDuration) * time.Hour,
+		accessExp:  accessExp,
+		refreshExp: refreshExp,
 	}
 }
 

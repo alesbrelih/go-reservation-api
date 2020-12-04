@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/alesbrelih/go-reservation-api/config"
 	"github.com/alesbrelih/go-reservation-api/controller"
 	"github.com/alesbrelih/go-reservation-api/db"
 	"github.com/alesbrelih/go-reservation-api/middleware"
@@ -13,10 +14,13 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
-func InitializeRouter(db db.DbFactory) *mux.Router {
+func InitializeRouter(db db.DbFactory, config config.Enviroment) *mux.Router {
 	r := mux.NewRouter()
 
-	authService := services.NewAuthHandler()
+	authService := services.NewAuthHandler(
+		config.Jwt.Secret,
+		config.Jwt.AccessExpiration,
+		config.Jwt.RefreshExpiration)
 
 	jwt := middleware.NewJwt(authService, hclog.Default())
 

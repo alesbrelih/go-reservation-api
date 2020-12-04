@@ -11,6 +11,7 @@ import (
 	"code.soquee.net/testlog"
 	"github.com/alesbrelih/go-reservation-api/controller"
 	"github.com/alesbrelih/go-reservation-api/models"
+	"github.com/alesbrelih/go-reservation-api/stores"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/mock"
 )
@@ -44,7 +45,7 @@ func (h *MyFakeUserStore) Delete(id int64) error {
 	return args.Error(0)
 }
 
-func userRouter(store controller.UserStore, t *testing.T) *mux.Router {
+func userRouter(store stores.UserStore, t *testing.T) *mux.Router {
 	r := mux.NewRouter()
 
 	userHandler := controller.NewUserHandler(store, testlog.New(t))

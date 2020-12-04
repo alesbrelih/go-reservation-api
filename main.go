@@ -10,30 +10,30 @@ import (
 	"syscall"
 	"time"
 
+	env "github.com/Netflix/go-env"
+	"github.com/alesbrelih/go-reservation-api/config"
 	"github.com/alesbrelih/go-reservation-api/db"
-	"github.com/alesbrelih/go-reservation-api/pkg/myutil"
 	"github.com/alesbrelih/go-reservation-api/router"
 )
 
 func main() {
 
-	ctx, cancel := context.WithCancel(context.Background())
-
-	port := myutil.GetEnvOrDefault("APPLICATION_PORT", "8080")
-
-	postgresDsn, found := os.LookupEnv("POSTGRES_URL")
-	if !found {
-		panic(myutil.MissingEnvVariableMsg("POSTGRES_URL"))
+	var config config.Enviroment
+	_, err := env.UnmarshalFromEnviron(&config)
+	if err != nil {
+		panic(err)
 	}
 
-	dbFactory := db.NewDbFactory(postgresDsn)
+	ctx, cancel := context.WithCancel(context.Background())
 
-	mux := router.InitializeRouter(dbFactory)
+	dbFactory := db.NewDbFactory(config.Database.URL)
+
+	mux := router.InitializeRouter(dbFactory, config)
 
 	l := log.New(os.Stdout, "reservations", log.LstdFlags)
 
 	server := &http.Server{
-		Addr:         ":" + port,
+		Addr:         ":" + config.Application.PORT,
 		Handler:      mux,
 		ErrorLog:     l,
 		ReadTimeout:  2 * time.Second,   // max time to read request
@@ -64,7 +64,7 @@ func main() {
 	gracefullCtx, cancelShutdown := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancelShutdown()
 
-	err := server.Shutdown(gracefullCtx)
+	err = server.Shutdown(gracefullCtx)
 	if err != nil {
 		log.Printf("Shutdown error: %v\n", err)
 		os.Exit(1)
