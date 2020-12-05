@@ -16,10 +16,13 @@ import (
 	_ "github.com/lib/pq"
 )
 
+var baseValidate *validator.Validate
 var createValidate *validator.Validate
 var updateValidate *validator.Validate
 
 func init() {
+	baseValidate = validator.New()
+
 	createValidate = validator.New()
 	createValidate.SetTagName("create")
 

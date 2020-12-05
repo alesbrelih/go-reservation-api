@@ -10,7 +10,7 @@ import (
 
 var InvalidTokenError = errors.New("Invalid jwt token")
 
-func NewAuthHandler(secret string, accessExp, refreshExp time.Duration) AuthService {
+func NewAuthService(secret string, accessExp, refreshExp time.Duration) AuthService {
 	return &authService{
 		secret:     []byte(secret),
 		accessExp:  accessExp,
@@ -30,6 +30,8 @@ type authService struct {
 	refreshExp time.Duration
 }
 
+// Generates access and refresh token
+// id is id of user which will be included as subject inside jwt body
 func (a *authService) GenerateJwtPair(id string) (*models.TokenPair, error) {
 	accessClaims := &jwt.StandardClaims{
 		Subject:   id,
@@ -58,6 +60,7 @@ func (a *authService) GenerateJwtPair(id string) (*models.TokenPair, error) {
 	return tokenPair, nil
 }
 
+// refreshes token in parameter if valid and returns access and refresh token
 func (a *authService) RefreshToken(refreshToken string) (*models.TokenPair, error) {
 
 	claims, err := a.GetClaims(refreshToken)
@@ -67,6 +70,7 @@ func (a *authService) RefreshToken(refreshToken string) (*models.TokenPair, erro
 	return a.GenerateJwtPair(claims.Subject)
 }
 
+// gets claims from jwt token
 func (a *authService) GetClaims(jwtString string) (*jwt.StandardClaims, error) {
 	token, err := jwt.ParseWithClaims(jwtString, &jwt.StandardClaims{}, func(jwtToken *jwt.Token) (interface{}, error) {
 		if _, ok := jwtToken.Method.(*jwt.SigningMethodHMAC); !ok {

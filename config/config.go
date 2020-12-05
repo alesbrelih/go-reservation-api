@@ -15,4 +15,3 @@ type Enviroment struct {
 		URL string `env:"POSTGRES_URL,required=true"`
 	}
 }
-6

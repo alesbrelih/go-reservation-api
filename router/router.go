@@ -17,7 +17,12 @@ import (
 func InitializeRouter(db db.DbFactory, config config.Enviroment) *mux.Router {
 	r := mux.NewRouter()
 
-	authService := services.NewAuthHandler(
+	controllerLogger := hclog.New(&hclog.LoggerOptions{
+		Name:  "reservation-controller",
+		Level: hclog.LevelFromString("DEBUG"),
+	})
+
+	authService := services.NewAuthService(
 		config.Jwt.Secret,
 		config.Jwt.AccessExpiration,
 		config.Jwt.RefreshExpiration)
@@ -52,6 +57,12 @@ func InitializeRouter(db db.DbFactory, config config.Enviroment) *mux.Router {
 	authLogger := log.New(os.Stdout, "auth-controller", log.LstdFlags)
 	authHandler := controller.NewAuthHandler(authStore, authService, authLogger)
 	r.PathPrefix("/auth").Handler(authHandler.NewRouter())
+
+	// inquiry
+	inquiryStore := stores.NewInquiryStore(db)
+	inquiryLogger := controllerLogger.Named("inqiry")
+	inquiryHandler := controller.NewInquiryHandler(inquiryStore, inquiryLogger)
+	r.PathPrefix("/inquiry").Handler(inquiryHandler.NewRouter())
 
 	return r
 }

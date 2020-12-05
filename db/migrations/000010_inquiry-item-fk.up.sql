@@ -1,0 +1,5 @@
+ALTER TABLE inquiry 
+ADD COLUMN item_id bigint,
+ADD CONSTRAINT inquiry_item_fk 
+FOREIGN KEY (item_id) 
+REFERENCES item (id) ON UPDATE CASCADE ON DELETE CASCADE;
