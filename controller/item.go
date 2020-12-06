@@ -101,7 +101,6 @@ func (h *itemHandler) Create(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Header().Add("content-type", "application/json")
 	fmt.Fprint(w, id)
 }
 

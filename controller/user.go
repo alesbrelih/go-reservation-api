@@ -85,7 +85,6 @@ func (c *userHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Header().Add("content-type", "application/json")
 	fmt.Fprint(w, id)
 }
 

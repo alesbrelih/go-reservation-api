@@ -22,6 +22,10 @@ func InitializeRouter(db db.DbFactory, config config.Enviroment) *mux.Router {
 		Level: hclog.LevelFromString("DEBUG"),
 	})
 
+	// set content type json
+	contentType := middleware.NewJsonMiddleware()
+	r.Use(contentType.SetResponseHeader)
+
 	authService := services.NewAuthService(
 		config.Jwt.Secret,
 		config.Jwt.AccessExpiration,
