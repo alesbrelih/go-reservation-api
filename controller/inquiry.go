@@ -1,12 +1,15 @@
 package controller
 
 import (
+	"database/sql"
 	"net/http"
+	"strconv"
 
 	"github.com/alesbrelih/go-reservation-api/models"
 	"github.com/alesbrelih/go-reservation-api/stores"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-hclog"
+	"github.com/pkg/errors"
 )
 
 func NewInquiryHandler(store stores.InquiryStore, log hclog.Logger) InquiryHandler {
@@ -19,6 +22,7 @@ func NewInquiryHandler(store stores.InquiryStore, log hclog.Logger) InquiryHandl
 type InquiryHandler interface {
 	GetAll(w http.ResponseWriter, r *http.Request)
 	Create(w http.ResponseWriter, r *http.Request)
+	Delete(w http.ResponseWriter, r *http.Request)
 	NewRouter() *mux.Router
 }
 
@@ -66,6 +70,23 @@ func (i *inquiryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func (i *inquiryHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	id, _ := strconv.ParseInt(params["id"], 10, 64) // validated by regex already
+	err := i.store.Delete(r.Context(), id)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+		i.log.Error("Error deleting inquiry", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func (i *inquiryHandler) NewRouter() *mux.Router {
 	r := mux.NewRouter()
 
@@ -74,6 +95,9 @@ func (i *inquiryHandler) NewRouter() *mux.Router {
 
 	post := r.Methods(http.MethodPost).Subrouter()
 	post.HandleFunc("/inquiry", i.Create)
+
+	delete := r.Methods(http.MethodDelete).Subrouter()
+	delete.HandleFunc("/inquiry/{id:[\\d]+}", i.Delete)
 
 	return r
 }

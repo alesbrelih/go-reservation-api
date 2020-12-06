@@ -2,6 +2,7 @@ package stores
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/alesbrelih/go-reservation-api/db"
 	"github.com/alesbrelih/go-reservation-api/models"
@@ -17,6 +18,7 @@ func NewInquiryStore(dbFactory db.DbFactory) InquiryStore {
 type InquiryStore interface {
 	GetAll(ctx context.Context) (models.Inquiries, error)
 	Create(ctx context.Context, inquiry *models.InquiryCreate) error
+	Delete(ctx context.Context, id int64) error
 }
 
 type inquiryStoreSql struct {
@@ -63,14 +65,60 @@ func (i *inquiryStoreSql) Create(ctx context.Context, inquiry *models.InquiryCre
 	db := i.dbFactory.Connect()
 	defer db.Close()
 
-	q := `INSERT INTO inquiry 
-		(inquirer,email,phone,item_id,date_reservation,date_created)
-		VALUES
-		($1, $2, $3, $4, $5, NOW())`
-
-	_, err := db.ExecContext(ctx, q, inquiry.Inquirer, inquiry.Email, inquiry.Phone, inquiry.ItemId, inquiry.Date)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
+		return errors.Wrap(err, "Could not initialize Create inqiry transaction")
+	}
+
+	//TODO: validate when inserting item that dateprices dont overlap!!
+	// AND THEY NEED TO BE REQUIRE
+
+	item := &models.Item{}
+	q := `SELECT i.id, i.title, COALESCE(ip.price, i.price) 
+			FROM item i
+				LEFT JOIN item_date_range_price ip ON (ip.item_id = i.id AND 
+					ip.date_from <= now() at time zone 'utc' AND ip.date_to >= now() at time zone 'utc')
+			WHERE i.id = $1`
+
+	// SELECT CORRECT PRICE
+	if err := tx.QueryRowContext(ctx, q, inquiry.ItemId).Scan(&item.Id, &item.Title, &item.Price); err != nil {
+		return errors.Wrap(err, "Error retrieving item on inquiry create")
+	}
+
+	// get item that belongs to
+
+	q = `INSERT INTO inquiry 
+		(inquirer,email,phone,item_id, item_title, item_price, date_reservation,date_created)
+		VALUES
+		($1, $2, $3, $4, $5, $6, $7, now() at time zone 'utc')`
+
+	_, err = tx.ExecContext(ctx, q, inquiry.Inquirer, inquiry.Email,
+		inquiry.Phone, item.Id, item.Title, item.Price, inquiry.Date)
+	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, "Error creating new inquiry")
+	}
+
+	tx.Commit()
+	return nil
+}
+
+func (i *inquiryStoreSql) Delete(ctx context.Context, id int64) error {
+	db := i.dbFactory.Connect()
+	defer db.Close()
+
+	q := "DELETE FROM inquiry WHERE id = $1"
+	res, err := db.ExecContext(ctx, q, id)
+	if err != nil {
+		return errors.Wrap(err, "Error deleting inquiry from DB")
+	}
+
+	if num, err := res.RowsAffected(); num == 0 || err != nil {
+		if num == 0 {
+			return sql.ErrNoRows
+		}
+		return err
+
 	}
 
 	return nil
