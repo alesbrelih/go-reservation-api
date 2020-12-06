@@ -65,6 +65,10 @@ func (i *inquiryHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	err = i.store.Create(r.Context(), ic)
 	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
 		i.log.Debug("Error saving inquiry in database. Request body", ic, " Error: ", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return

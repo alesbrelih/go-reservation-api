@@ -15,11 +15,39 @@ func NewAcceptedStoreSql(dbFactory db.DbFactory) AcceptedStore {
 }
 
 type AcceptedStore interface {
+	GetAll(ctx context.Context) (models.AcceptedList, error)
 	ProcessInquiry(ctx context.Context, accepted *models.Accepted) (int64, error)
 }
 
 type acceptedStoreSql struct {
 	dbFactory db.DbFactory
+}
+
+func (a *acceptedStoreSql) GetAll(ctx context.Context) (models.AcceptedList, error) {
+	db := a.dbFactory.Connect()
+	defer db.Close()
+
+	// TODO: add index to date_accepted
+	q := `SELECT id, inquirer, inquirer_email, inquirer_phone,
+				item_id, item_title, item_price, date_reservation 
+			FROM accepted a
+			ORDER BY a.date_accepted DESC`
+
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errors.Wrap(err, "Error querying all accepted from db")
+	}
+
+	var acceptedList []*models.Accepted
+	for rows.Next() {
+		accepted := &models.Accepted{}
+		if err := rows.Scan(&accepted.Id, &accepted.Inquirer, &accepted.InquirerEmail,
+			&accepted.InquirerPhone, &accepted.ItemId, &accepted.ItemTitle, &accepted.ItemPrice, &accepted.DateReservation); err != nil {
+			return nil, errors.Wrap(err, "Error scaning accepted info to model")
+		}
+		acceptedList = append(acceptedList, accepted)
+	}
+	return acceptedList, nil
 }
 
 func (a *acceptedStoreSql) ProcessInquiry(ctx context.Context, accepted *models.Accepted) (int64, error) {

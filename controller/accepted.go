@@ -17,6 +17,7 @@ func NewAcceptedHandler(store stores.AcceptedStore, log hclog.Logger) AcceptedHa
 }
 
 type AcceptedHandler interface {
+	GetAll(w http.ResponseWriter, r *http.Request)
 	ProcessInquiry(w http.ResponseWriter, r *http.Request)
 	NewRouter() *mux.Router
 }
@@ -24,6 +25,16 @@ type AcceptedHandler interface {
 type acceptedHandler struct {
 	log   hclog.Logger
 	store stores.AcceptedStore
+}
+
+func (a *acceptedHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	items, err := a.store.GetAll(r.Context())
+	if err != nil {
+		a.log.Error("Error retrieving accepted list (controller)", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	items.ToJSON(w)
 }
 
 func (a *acceptedHandler) ProcessInquiry(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +62,9 @@ func (a *acceptedHandler) ProcessInquiry(w http.ResponseWriter, r *http.Request)
 
 func (a *acceptedHandler) NewRouter() *mux.Router {
 	r := mux.NewRouter()
+
+	getSubrouter := r.Methods(http.MethodGet).Subrouter()
+	getSubrouter.HandleFunc("/accepted", a.GetAll)
 
 	postSubrouter := r.Methods(http.MethodPost).Subrouter()
 	postSubrouter.HandleFunc("/accepted/process", a.ProcessInquiry)
