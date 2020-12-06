@@ -1,0 +1,1 @@
+ALTER TABLE inquiry DROP COLUMN comment;

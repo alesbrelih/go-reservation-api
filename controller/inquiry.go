@@ -17,6 +17,7 @@ func NewInquiryHandler(store stores.InquiryStore, log hclog.Logger) InquiryHandl
 }
 
 type InquiryHandler interface {
+	GetAll(w http.ResponseWriter, r *http.Request)
 	Create(w http.ResponseWriter, r *http.Request)
 	NewRouter() *mux.Router
 }
@@ -24,6 +25,16 @@ type InquiryHandler interface {
 type inquiryHandler struct {
 	log   hclog.Logger
 	store stores.InquiryStore
+}
+
+func (i *inquiryHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	inquiries, err := i.store.GetAll(r.Context())
+	if err != nil {
+		i.log.Error("Error retrieving inquiries", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	inquiries.ToJSON(w)
 }
 
 func (i *inquiryHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -57,6 +68,9 @@ func (i *inquiryHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (i *inquiryHandler) NewRouter() *mux.Router {
 	r := mux.NewRouter()
+
+	get := r.Methods(http.MethodGet).Subrouter()
+	get.HandleFunc("/inquiry", i.GetAll)
 
 	post := r.Methods(http.MethodPost).Subrouter()
 	post.HandleFunc("/inquiry", i.Create)

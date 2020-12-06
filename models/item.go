@@ -7,11 +7,11 @@ import (
 )
 
 type Item struct {
-	Id         int64           `json:"id" create:"number,omitempty" update:"required,number"`
-	Title      *string         `json:"title" create:"required,gt=3" update:"required,gt=3"`
-	ShowFrom   *time.Time      `json:"showFrom"`
+	Id         int64           `json:"id,omitempty" create:"number,omitempty" update:"required,number"`
+	Title      *string         `json:"title,omitempty" create:"required,gt=3" update:"required,gt=3"`
+	ShowFrom   *time.Time      `json:"showFrom,omitempty"`
 	ShowTo     *time.Time      `json:"showTo,omitempty"`
-	Price      int64           `json:"price" create:"number,omitempty" update:"number,omitempty"`
+	Price      int64           `json:"price,omitempty" create:"number,omitempty" update:"number,omitempty"`
 	DatePrices []ItemDatePrice `json:"datePrices,omitempty"`
 }
 
