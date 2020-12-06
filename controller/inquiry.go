@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/alesbrelih/go-reservation-api/middleware"
 	"github.com/alesbrelih/go-reservation-api/models"
 	"github.com/alesbrelih/go-reservation-api/stores"
 	"github.com/gorilla/mux"
@@ -12,9 +13,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewInquiryHandler(store stores.InquiryStore, log hclog.Logger) InquiryHandler {
+func NewInquiryHandler(store stores.InquiryStore, jwt middleware.Jwt, log hclog.Logger) InquiryHandler {
 	return &inquiryHandler{
 		store: store,
+		jwt:   jwt,
 		log:   log,
 	}
 }
@@ -28,6 +30,7 @@ type InquiryHandler interface {
 
 type inquiryHandler struct {
 	log   hclog.Logger
+	jwt   middleware.Jwt
 	store stores.InquiryStore
 }
 
@@ -92,12 +95,14 @@ func (i *inquiryHandler) NewRouter() *mux.Router {
 
 	get := r.Methods(http.MethodGet).Subrouter()
 	get.HandleFunc("/inquiry", i.GetAll)
+	get.Use(i.jwt.ValidateUser)
 
 	post := r.Methods(http.MethodPost).Subrouter()
 	post.HandleFunc("/inquiry", i.Create)
 
 	delete := r.Methods(http.MethodDelete).Subrouter()
 	delete.HandleFunc("/inquiry/{id:[\\d]+}", i.Delete)
+	get.Use(i.jwt.ValidateUser)
 
 	return r
 }

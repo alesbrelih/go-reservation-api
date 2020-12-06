@@ -64,9 +64,16 @@ func InitializeRouter(db db.DbFactory, config config.Enviroment) *mux.Router {
 
 	// inquiry
 	inquiryStore := stores.NewInquiryStore(db)
-	inquiryLogger := controllerLogger.Named("inqiry")
-	inquiryHandler := controller.NewInquiryHandler(inquiryStore, inquiryLogger)
+	inquiryLogger := controllerLogger.Named("inquiry")
+	inquiryHandler := controller.NewInquiryHandler(inquiryStore, jwt, inquiryLogger)
 	r.PathPrefix("/inquiry").Handler(inquiryHandler.NewRouter())
 
+	// accepted
+	acceptStore := stores.NewAcceptedStoreSql(db)
+	acceptedLogger := controllerLogger.Named("accepted")
+	acceptedHandler := controller.NewAcceptedHandler(acceptStore, acceptedLogger)
+	acceptedRouter := acceptedHandler.NewRouter()
+	acceptedRouter.Use(jwt.ValidateUser)
+	r.PathPrefix("/accepted").Handler(acceptedRouter)
 	return r
 }
