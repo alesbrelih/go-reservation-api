@@ -2,6 +2,7 @@ package stores
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/alesbrelih/go-reservation-api/db"
 	"github.com/alesbrelih/go-reservation-api/models"
@@ -17,6 +18,7 @@ func NewAcceptedStoreSql(dbFactory db.DbFactory) AcceptedStore {
 type AcceptedStore interface {
 	GetAll(ctx context.Context) (models.AcceptedList, error)
 	ProcessInquiry(ctx context.Context, accepted *models.Accepted) (int64, error)
+	Delete(ctx context.Context, id int64) error
 }
 
 type acceptedStoreSql struct {
@@ -73,4 +75,32 @@ func (a *acceptedStoreSql) ProcessInquiry(ctx context.Context, accepted *models.
 	}
 
 	return id, nil
+}
+
+func (a *acceptedStoreSql) Delete(ctx context.Context, id int64) error {
+	db := a.dbFactory.Connect()
+	defer db.Close()
+
+	tx, err := db.BeginTx(ctx, nil)
+	defer tx.Rollback()
+
+	if err != nil {
+		return errors.Wrap(err, "Error initializing transaction for Delete in accepted store")
+	}
+
+	q := "DELETE FROM accepted WHERE id = $1"
+	res, err := tx.ExecContext(ctx, q, id)
+	if err != nil {
+		return errors.Wrapf(err, "Error deleting accepted inside store. Id: %v. Error: %v", id, err)
+	}
+
+	if num, err := res.RowsAffected(); err != nil || num == 0 {
+		if num == 0 {
+			return sql.ErrNoRows
+		}
+		return errors.Wrap(err, "Error retrieving rows affected")
+	}
+
+	tx.Commit()
+	return nil
 }

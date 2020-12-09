@@ -1,12 +1,15 @@
 package controller
 
 import (
+	"database/sql"
 	"net/http"
+	"strconv"
 
 	"github.com/alesbrelih/go-reservation-api/models"
 	"github.com/alesbrelih/go-reservation-api/stores"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-hclog"
+	"github.com/pkg/errors"
 )
 
 func NewAcceptedHandler(store stores.AcceptedStore, log hclog.Logger) AcceptedHandler {
@@ -19,6 +22,7 @@ func NewAcceptedHandler(store stores.AcceptedStore, log hclog.Logger) AcceptedHa
 type AcceptedHandler interface {
 	GetAll(w http.ResponseWriter, r *http.Request)
 	ProcessInquiry(w http.ResponseWriter, r *http.Request)
+	Delete(w http.ResponseWriter, r *http.Request)
 	NewRouter() *mux.Router
 }
 
@@ -60,6 +64,23 @@ func (a *acceptedHandler) ProcessInquiry(w http.ResponseWriter, r *http.Request)
 	models.NewIdResponse(id).ToJSON(w)
 }
 
+func (a *acceptedHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id, _ := strconv.ParseInt(params["id"], 10, 64) // no need to check due to mux route
+
+	err := a.store.Delete(r.Context(), id)
+	if err != nil {
+		if errors.Cause(err) == sql.ErrNoRows {
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+		a.log.Error("Error deleting accepted from db. Id: ", id, " Error: ", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func (a *acceptedHandler) NewRouter() *mux.Router {
 	r := mux.NewRouter()
 
@@ -68,6 +89,9 @@ func (a *acceptedHandler) NewRouter() *mux.Router {
 
 	postSubrouter := r.Methods(http.MethodPost).Subrouter()
 	postSubrouter.HandleFunc("/accepted/process", a.ProcessInquiry)
+
+	deleteSubrouter := r.Methods(http.MethodDelete).Subrouter()
+	deleteSubrouter.HandleFunc("/accepted/{id:[\\d+]}", a.Delete)
 
 	return r
 }
