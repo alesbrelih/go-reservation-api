@@ -171,7 +171,7 @@ func TestAccepted_ProcessInquiry_Success(t *testing.T) {
 
 	responseExpectation, _ := json.Marshal(models.NewIdResponse(1))
 	if strings.TrimSpace(res.Body.String()) != string(responseExpectation) {
-		t.Errorf("Response body should be %#v but got %#v", "{\"id\":1}\n", res.Body.String())
+		t.Errorf("Response body should be %#v but got %#v", responseExpectation, res.Body.String())
 	}
 }
 
