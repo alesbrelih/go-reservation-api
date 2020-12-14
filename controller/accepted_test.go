@@ -3,9 +3,11 @@ package controller_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,7 +30,9 @@ func (h *MyFakeAcceptedStore) GetAll(ctx context.Context) (models.AcceptedList, 
 }
 
 func (h *MyFakeAcceptedStore) ProcessInquiry(ctx context.Context, accepted *models.Accepted) (int64, error) {
-	args := h.Called(ctx, accepted)
+	// removed controller parameters because not necessary in this test
+	// i would be using mock.Anything anyways
+	args := h.Called()
 	return args.Get(0).(int64), args.Error(1)
 }
 
@@ -128,6 +132,47 @@ func TestAccepted_GetAll_DbError(t *testing.T) {
 	}
 
 	logMock.AssertExpectations(t)
+}
+
+func TestAccepted_ProcessInquiry_Success(t *testing.T) {
+	logMock := &test_util.HcLogMock{}
+
+	someTime := time.Now()
+	mockedBody := &models.Accepted{
+		ItemId:             1,
+		Inquirer:           "john Doe",
+		InquirerEmail:      "john.doe@doe.com",
+		InquirerPhone:      "+38641666666",
+		InquirerComment:    "My Comment",
+		ItemTitle:          "Some item",
+		ItemPrice:          4000,
+		Notes:              "Some notes",
+		DateReservation:    &someTime,
+		DateInquiryCreated: &someTime,
+		DateAccepted:       &someTime,
+	}
+
+	acceptedStore := &MyFakeAcceptedStore{}
+	acceptedStore.On("ProcessInquiry").Return(int64(1), nil)
+	router := acceptedTestRouter(acceptedStore, logMock, t)
+
+	body, err := json.Marshal(mockedBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest("POST", "/accepted/process", bytes.NewReader(body))
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	if res.Result().StatusCode != 200 {
+		t.Errorf("Get all status code should be 200 but got %v", res.Result().StatusCode)
+	}
+
+	responseExpectation, _ := json.Marshal(models.NewIdResponse(1))
+	if strings.TrimSpace(res.Body.String()) != string(responseExpectation) {
+		t.Errorf("Response body should be %#v but got %#v", "{\"id\":1}\n", res.Body.String())
+	}
 }
 
 // func TestTenant_GetOne_GetResult(t *testing.T) {
